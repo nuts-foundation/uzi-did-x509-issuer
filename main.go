@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/alecthomas/kong"
-	"headease-nuts-pki-overheid-issuer/did_x509"
+	"headease-nuts-pki-overheid-issuer/ura_vc"
 	"os"
 )
 
@@ -51,7 +51,7 @@ func main() {
 }
 
 func handleVc(vc VC) (string, error) {
-	reader := did_x509.NewPemReader()
+	reader := ura_vc.NewPemReader()
 	chain, err := reader.ParseFileOrPath(vc.ChainFileOrPath, "CERTIFICATE")
 	if err != nil {
 		return "", err
@@ -69,7 +69,7 @@ func handleVc(vc VC) (string, error) {
 		err := fmt.Errorf("no signing keys found")
 		return "", err
 	}
-	chainParser := did_x509.NewDefaultChainParser()
+	chainParser := ura_vc.NewDefaultChainParser()
 	privateKey, err := chainParser.ParsePrivateKey(signingKey)
 	if err != nil {
 		return "", err
@@ -80,8 +80,8 @@ func handleVc(vc VC) (string, error) {
 		return "", err
 	}
 
-	creator := did_x509.NewDidCreator()
-	builder := did_x509.NewUraVcBuilder(creator)
+	creator := ura_vc.NewDidCreator()
+	builder := ura_vc.NewUraVcBuilder(creator)
 	credential, err := builder.BuildUraVerifiableCredential(certChain, privateKey, vc.SubjectDID, vc.SubjectName)
 	marshal, err := json.Marshal(credential)
 	if err != nil {

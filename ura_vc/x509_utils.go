@@ -1,4 +1,4 @@
-package did_x509
+package ura_vc
 
 import (
 	"crypto/x509"
