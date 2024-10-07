@@ -36,7 +36,7 @@ func FormatDid(chain *[]x509.Certificate, policy string) (string, error) {
 		return "", err
 	}
 	encodeToString := base64.RawURLEncoding.EncodeToString(rootHash)
-	fragments := []string{"did", "x509", "0", encodeToString}
+	fragments := []string{"did", "x509", "0", alg, encodeToString}
 	if policy != "" {
 		return strings.Join([]string{strings.Join(fragments, ":"), policy}, "::"), nil
 	}
@@ -57,7 +57,7 @@ func (d *DefaultDidCreator) CreateDid(chain *[]x509.Certificate) (string, error)
 }
 
 func CreatePolicy(ura string) string {
-	fragments := []string{"san", "persistentIdentifier", ura}
+	fragments := []string{"san", "permanentIdentifier", ura}
 	policy := strings.Join(fragments, ":")
 	return policy
 }
