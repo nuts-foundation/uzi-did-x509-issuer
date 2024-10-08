@@ -54,7 +54,7 @@ func handleVc(vc VC) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	chain, err := reader.ParseFileOrPath("chain", "CERTIFICATE")
+	chain, err := reader.ParseFileOrPath("ca_certs", "CERTIFICATE")
 	if err != nil {
 		return "", err
 	}
