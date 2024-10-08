@@ -66,7 +66,7 @@ func (v UraVcBuilder) BuildUraVerifiableCredential(certificates *[]x509.Certific
 		}
 
 		// x5c
-		serializedCert, err := marshalChain(chain, signingCert)
+		serializedCert, err := marshalChain(chain)
 		if err != nil {
 			return "", err
 		}
@@ -93,11 +93,10 @@ func (v UraVcBuilder) BuildUraVerifiableCredential(certificates *[]x509.Certific
 
 // marshalChain converts a slice of x509.Certificate instances to a cert.Chain, encoding each certificate as PEM.
 // It returns the PEM-encoded cert.Chain and an error if the encoding or header fixation fails.
-func marshalChain(certificates *[]x509.Certificate, signingCert *x509.Certificate) (*cert.Chain, error) {
+func marshalChain(certificates *[]x509.Certificate) (*cert.Chain, error) {
 	chainPems := &cert.Chain{}
 	for _, certificate := range *certificates {
-		bytes := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certificate.Raw})
-		err := chainPems.Add(bytes)
+		err := chainPems.Add(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certificate.Raw}))
 		if err != nil {
 			return nil, err
 		}
@@ -109,7 +108,7 @@ func marshalChain(certificates *[]x509.Certificate, signingCert *x509.Certificat
 func validateChain(certificates *[]x509.Certificate) error {
 	certs := *certificates
 	var prev *x509.Certificate = nil
-	for i, _ := range certs {
+	for i := range certs {
 		certificate := certs[len(certs)-i-1]
 		if prev != nil {
 			err := prev.CheckSignatureFrom(&certificate)
