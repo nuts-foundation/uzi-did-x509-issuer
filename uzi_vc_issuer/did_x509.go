@@ -18,6 +18,7 @@ type DidCreator interface {
 var (
 	SubjectAlternativeNameType = asn1.ObjectIdentifier{2, 5, 29, 17}
 	PermanentIdentifierType    = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 8, 3}
+	OtherNameType              = asn1.ObjectIdentifier{2, 5, 5, 5}
 	UraAssigner                = asn1.ObjectIdentifier{2, 16, 528, 1, 1007, 3, 3}
 )
 

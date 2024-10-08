@@ -6,6 +6,7 @@ import (
 	"encoding/asn1"
 	"errors"
 	"fmt"
+	"regexp"
 )
 
 type OtherName struct {
@@ -68,6 +69,39 @@ func FindPermanentIdentifierValue(cert *x509.Certificate) (*PermanentIdentifier,
 	}
 	return nil, nil
 }
+func FindOtherNameValue(cert *x509.Certificate) (string, error) {
+	value := ""
+	for _, extension := range cert.Extensions {
+		if extension.Id.Equal(SubjectAlternativeNameType) {
+			err := forEachSAN(extension.Value, func(tag int, data []byte) error {
+				if tag != 0 {
+					return nil
+				}
+				var other OtherName
+				_, err := asn1.UnmarshalWithParams(data, &other, "tag:0")
+				if err != nil {
+					return fmt.Errorf("could not parse requested other SAN: %v", err)
+				}
+				if other.TypeID.Equal(OtherNameType) {
+					_, err = asn1.Unmarshal(other.Value.Bytes, &value)
+					if err != nil {
+						return err
+					}
+				}
+				return nil
+			})
+			if err != nil {
+				return "", err
+			}
+			regex := regexp.MustCompile(`2\.16\.528\.1\.1007.\d+\.\d+-\d+-\d+-S-(\d+)-00\.000-\d+`)
+			submatch := regex.FindStringSubmatch(value)
+			if len(submatch) == 2 {
+				return submatch[1], nil
+			}
+		}
+	}
+	return "", nil
+}
 
 // forEachSAN iterates over each SAN (Subject Alternative Name) in the provided ASN.1 encoded extension.
 // It unmarshals the extension and checks if it is a valid SAN sequence, then processes each element using the callback.
@@ -124,7 +158,17 @@ func FindSigningCertificate(chain *[]x509.Certificate) (*x509.Certificate, strin
 		if identifier != nil && identifier.IdentifierValue != "" {
 			return &cert, identifier.IdentifierValue, nil
 		}
+		otherNameValue, err := FindOtherNameValue(&cert)
+		if err != nil {
+			return nil, "", err
+		}
+		if otherNameValue != "" {
+			return &cert, otherNameValue, nil
+		}
 	}
-	err := errors.New("no certificate found with SAN subjectAltName (2.5.29.17) and attribute Permanent Identifier (1.3.6.1.5.5.7.8.3)")
+	err := fmt.Errorf("no certificate found with a URA code in SAN subjectAltName (%s) and attribute Permanent Identifier (%s) or otherName (%s)",
+		SubjectAlternativeNameType.String(),
+		PermanentIdentifierType.String(),
+		OtherNameType.String())
 	return nil, "", err
 }
