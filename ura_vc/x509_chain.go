@@ -38,13 +38,13 @@ func NewDefaultChainParser() *DefaultChainParser {
 	return &DefaultChainParser{}
 }
 
-func (c DefaultChainParser) ParseChain(chainPem *[][]byte) (*[]x509.Certificate, error) {
-	if chainPem == nil {
-		return nil, fmt.Errorf("chainPem is nil")
+func (c DefaultChainParser) ParseChain(derChain *[][]byte) (*[]x509.Certificate, error) {
+	if derChain == nil {
+		return nil, fmt.Errorf("derChain is nil")
 	}
-	chain := make([]x509.Certificate, len(*chainPem))
+	chain := make([]x509.Certificate, len(*derChain))
 
-	for i, certBytes := range *chainPem {
+	for i, certBytes := range *derChain {
 		certificate, err := x509.ParseCertificate(certBytes)
 		if err != nil {
 			return nil, err
