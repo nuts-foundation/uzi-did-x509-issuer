@@ -51,9 +51,9 @@ func TestDefaultDidCreator_CreateDid(t *testing.T) {
 			name:   "Test case 2",
 			fields: fields{},
 			args: args{chain: &[]x509.Certificate{
-				x509.Certificate{}, // TODO: provide a realistic certificate implementation here
+				{},
 			}},
-			want:   "", // TODO: modify this value according to your certificate structure
+			want:   "",
 			errMsg: "no certificate found with SAN subjectAltName (2.5.29.17) and attribute Permanent Identifier (1.3.6.1.5.5.7.8.3)",
 		},
 		{
