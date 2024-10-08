@@ -19,14 +19,18 @@ import (
 )
 import "github.com/nuts-foundation/go-did/vc"
 
+// UraVcBuilder is responsible for building URA (UZI-register abonneenummer) Verifiable Credentials.
+// It utilizes a DidCreator to generate Decentralized Identifiers (DIDs) given a chain of x509 certificates.
 type UraVcBuilder struct {
 	didCreator DidCreator
 }
 
+// NewUraVcBuilder initializes and returns a new instance of UraVcBuilder with the provided DidCreator.
 func NewUraVcBuilder(didCreator DidCreator) *UraVcBuilder {
 	return &UraVcBuilder{didCreator}
 }
 
+// BuildUraVerifiableCredential constructs a verifiable credential with specified certificates, signing key, subject DID, and subject name.
 func (v UraVcBuilder) BuildUraVerifiableCredential(certs *[]x509.Certificate, signingKey *rsa.PrivateKey, subjectDID string, subjectName string) (*vc.VerifiableCredential, error) {
 	signingCert, ura, err := FindSigningCertificate(certs)
 	if err != nil {
@@ -81,6 +85,8 @@ func (v UraVcBuilder) BuildUraVerifiableCredential(certs *[]x509.Certificate, si
 	return credential, nil
 }
 
+// marshalChain converts a slice of x509.Certificate instances to a cert.Chain, encoding each certificate as PEM.
+// It returns the PEM-encoded cert.Chain and an error if the encoding or header fixation fails.
 func marshalChain(certs *[]x509.Certificate) (*cert.Chain, error) {
 	chainPems := &cert.Chain{}
 	for _, certificate := range *certs {
@@ -94,6 +100,7 @@ func marshalChain(certs *[]x509.Certificate) (*cert.Chain, error) {
 	return headers, err
 }
 
+// convertClaims converts a map of claims to a JWT token.
 func convertClaims(claims map[string]interface{}) (jwt.Token, error) {
 	t := jwt.New()
 	for k, v := range claims {
@@ -104,6 +111,7 @@ func convertClaims(claims map[string]interface{}) (jwt.Token, error) {
 	return t, nil
 }
 
+// convertHeaders converts a map of headers to jws.Headers, returning an error if any header fails to set.
 func convertHeaders(headers map[string]interface{}) (jws.Headers, error) {
 	hdr := jws.NewHeaders()
 
@@ -115,6 +123,8 @@ func convertHeaders(headers map[string]interface{}) (jws.Headers, error) {
 	return hdr, nil
 }
 
+// uraCredential generates a VerifiableCredential for a given URA and UZI number, including the subject's DID and name.
+// It sets a 12-year expiration period from the current issuance date.
 func uraCredential(did string, ura string, uzi string, subjectDID string, subjectName string) (vc.VerifiableCredential, error) {
 	exp := time.Now().Add(time.Hour * 24 * 365 * 12)
 	iat := time.Now()
@@ -136,6 +146,8 @@ func uraCredential(did string, ura string, uzi string, subjectDID string, subjec
 	}, nil
 }
 
+// fixChainHeaders replaces newline characters in the certificate chain headers with escaped newline sequences.
+// It processes each certificate in the provided chain and returns a new chain with the modified headers or an error if any occurs.
 func fixChainHeaders(chain *cert.Chain) (*cert.Chain, error) {
 	rv := &cert.Chain{}
 	for i := 0; i < chain.Len(); i++ {

@@ -16,6 +16,8 @@ import (
 	"time"
 )
 
+// TestDefaultDidCreator_CreateDid tests the CreateDid function of DefaultDidCreator by providing different certificate chains.
+// It checks for correct DID generation and appropriate error messages.
 func TestDefaultDidCreator_CreateDid(t *testing.T) {
 	type fields struct {
 	}
@@ -85,6 +87,7 @@ func TestDefaultDidCreator_CreateDid(t *testing.T) {
 	}
 }
 
+// BuildCertChain generates a certificate chain, including root, intermediate, and signing certificates.
 func BuildCertChain(uzi string) (*[]x509.Certificate, *cert.Chain, *x509.Certificate, *rsa.PrivateKey, *x509.Certificate, error) {
 	chain := [4]x509.Certificate{}
 	chainPems := &cert.Chain{}
@@ -177,7 +180,8 @@ func BuildCertChain(uzi string) (*[]x509.Certificate, *cert.Chain, *x509.Certifi
 	return &_chain, chainPems, rootCert, signingKey, signingCert, nil
 }
 
-// CertTemplate is a helper function to create a cert template with a serial number and other required fields
+// CertTemplate generates a template for an x509 certificate with a given serial number. If no serial number is provided, a random one is generated.
+// The certificate is valid for one month and uses SHA256 with RSA for the signature algorithm.
 func CertTemplate(serialNumber *big.Int) (*x509.Certificate, error) {
 	// generate a random serial number (a real cert authority would have some logic behind this)
 	if serialNumber == nil {
@@ -194,32 +198,14 @@ func CertTemplate(serialNumber *big.Int) (*x509.Certificate, error) {
 	}
 	return &tmpl, nil
 }
+
+// SigningCertTemplate creates an x509.Certificate template for a signing certificate with an optional serial number.
 func SigningCertTemplate(serialNumber *big.Int) (*x509.Certificate, error) {
 	// generate a random serial number (a real cert authority would have some logic behind this)
 	if serialNumber == nil {
 		serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 8)
 		serialNumber, _ = rand.Int(rand.Reader, serialNumberLimit)
 	}
-
-	list, err := toRawList(PermanentIdentifierType)
-	if err != nil {
-		return nil, err
-	}
-
-	bytes, err := asn1.MarshalWithParams(list, "tag:0")
-	if err != nil {
-		return nil, err
-	}
-	list, err = toRawList(asn1.RawValue{Tag: 0, Class: 2, IsCompound: true, Bytes: bytes})
-	if err != nil {
-		return nil, err
-	}
-	marshal, err := asn1.MarshalWithParams(list, "tag:0")
-	if err != nil {
-		return nil, err
-	}
-
-	//err = DebugUnmarshall(marshal, 0)
 	permanentIdentifier := PermanentIdentifier{
 		IdentifierValue: "23123123",
 		Assigner:        UraAssigner,
@@ -242,10 +228,10 @@ func SigningCertTemplate(serialNumber *big.Int) (*x509.Certificate, error) {
 	if err != nil {
 		return nil, err
 	}
-	list = []asn1.RawValue{}
+	var list []asn1.RawValue
 	list = append(list, *raw)
 	//fmt.Println("OFF")
-	marshal, err = asn1.Marshal(list)
+	marshal, err := asn1.Marshal(list)
 	if err != nil {
 		return nil, err
 	}
@@ -270,16 +256,7 @@ func SigningCertTemplate(serialNumber *big.Int) (*x509.Certificate, error) {
 	return &tmpl, nil
 }
 
-func toRawList(value any) ([]asn1.RawValue, error) {
-	list := []asn1.RawValue{}
-	val, err := toRawValue(value, "")
-	if err != nil {
-		return nil, err
-	}
-	list = append(list, *val)
-	return list, nil
-}
-
+// toRawValue marshals an ASN.1 identifier with a given tag, then unmarshals it into a RawValue structure.
 func toRawValue(identifier any, tag string) (*asn1.RawValue, error) {
 	bytes, err := asn1.MarshalWithParams(identifier, tag)
 	if err != nil {
@@ -293,6 +270,8 @@ func toRawValue(identifier any, tag string) (*asn1.RawValue, error) {
 	return &val, nil
 }
 
+// CreateCert generates a new x509 certificate using the provided template and parent certificates, public and private keys.
+// It returns the generated certificate, its PEM-encoded version, and any error encountered during the process.
 func CreateCert(template, parent *x509.Certificate, pub interface{}, parentPriv interface{}) (cert *x509.Certificate, certPEM []byte, err error) {
 
 	certDER, err := x509.CreateCertificate(rand.Reader, template, parent, pub, parentPriv)
@@ -310,6 +289,7 @@ func CreateCert(template, parent *x509.Certificate, pub interface{}, parentPriv 
 	return cert, certPEM, err
 }
 
+// DebugUnmarshall recursively unmarshalls ASN.1 encoded data and prints the structure with parsed values.
 func DebugUnmarshall(data []byte, depth int) error {
 	for len(data) > 0 {
 		var x asn1.RawValue

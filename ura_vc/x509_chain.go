@@ -10,6 +10,9 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
+// Hash computes the hash of the input data using the specified algorithm.
+// Supported algorithms include "sha1", "sha256", "sha384", and "sha512".
+// Returns the computed hash as a byte slice or an error if the algorithm is not supported.
 func Hash(data []byte, alg string) ([]byte, error) {
 	switch alg {
 	case "sha1":
@@ -28,16 +31,20 @@ func Hash(data []byte, alg string) ([]byte, error) {
 	return nil, fmt.Errorf("unsupported hash algorithm: %s", alg)
 }
 
+// ChainParser defines an interface for parsing certificate chains from PEM encoded string slices.
 type ChainParser interface {
 	ParseChain(chainPem []string) ([]*x509.Certificate, error)
 }
 
+// DefaultChainParser handles the parsing of certificate chains and private keys.
 type DefaultChainParser struct{}
 
+// NewDefaultChainParser creates a new instance of DefaultChainParser.
 func NewDefaultChainParser() *DefaultChainParser {
 	return &DefaultChainParser{}
 }
 
+// ParseChain takes a pointer to a slice of DER-encoded certificates and returns a slice of x509.Certificate objects.
 func (c DefaultChainParser) ParseChain(derChain *[][]byte) (*[]x509.Certificate, error) {
 	if derChain == nil {
 		return nil, fmt.Errorf("derChain is nil")
@@ -54,6 +61,9 @@ func (c DefaultChainParser) ParseChain(derChain *[][]byte) (*[]x509.Certificate,
 
 	return &chain, nil
 }
+
+// ParsePrivateKey parses a DER-encoded private key into an *rsa.PrivateKey.
+// It returns an error if the key is not in PKCS8 format or not an RSA key.
 func (c DefaultChainParser) ParsePrivateKey(der *[]byte) (*rsa.PrivateKey, error) {
 	if der == nil {
 		return nil, fmt.Errorf("der is nil")
