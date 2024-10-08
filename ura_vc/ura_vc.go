@@ -32,12 +32,17 @@ func NewUraVcBuilder(didCreator DidCreator) *UraVcBuilder {
 }
 
 // BuildUraVerifiableCredential constructs a verifiable credential with specified certificates, signing key, subject DID, and subject name.
-func (v UraVcBuilder) BuildUraVerifiableCredential(certs *[]x509.Certificate, signingKey *rsa.PrivateKey, subjectDID string, subjectName string) (*vc.VerifiableCredential, error) {
-	signingCert, ura, err := FindSigningCertificate(certs)
+func (v UraVcBuilder) BuildUraVerifiableCredential(certificates *[]x509.Certificate, signingKey *rsa.PrivateKey, subjectDID string, subjectName string) (*vc.VerifiableCredential, error) {
+	signingCert, ura, err := FindSigningCertificate(certificates)
+	chain := BuildCertificateChain(certificates, signingCert)
+	err = validateChain(chain)
 	if err != nil {
 		return nil, err
 	}
-	did, err := v.didCreator.CreateDid(certs)
+	if err != nil {
+		return nil, err
+	}
+	did, err := v.didCreator.CreateDid(chain)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +66,7 @@ func (v UraVcBuilder) BuildUraVerifiableCredential(certs *[]x509.Certificate, si
 		}
 
 		// x5c
-		serializedCert, err := marshalChain(certs, signingCert)
+		serializedCert, err := marshalChain(chain, signingCert)
 		if err != nil {
 			return "", err
 		}
@@ -89,11 +94,6 @@ func (v UraVcBuilder) BuildUraVerifiableCredential(certs *[]x509.Certificate, si
 // marshalChain converts a slice of x509.Certificate instances to a cert.Chain, encoding each certificate as PEM.
 // It returns the PEM-encoded cert.Chain and an error if the encoding or header fixation fails.
 func marshalChain(certificates *[]x509.Certificate, signingCert *x509.Certificate) (*cert.Chain, error) {
-	certificates = BuildCertificateChain(certificates, signingCert)
-	err := validateChain(certificates)
-	if err != nil {
-		return nil, err
-	}
 	chainPems := &cert.Chain{}
 	for _, certificate := range *certificates {
 		bytes := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certificate.Raw})
@@ -122,7 +122,7 @@ func validateChain(certificates *[]x509.Certificate) error {
 		}
 		prev = &certificate
 	}
-	return errors.New("failed to find a root certificate in chain")
+	return errors.New("failed to find a path to the root certificate in the chain, it looks like the provided certificate is a signed UZI-servercertificaat")
 }
 
 func BuildCertificateChain(certs *[]x509.Certificate, signingCert *x509.Certificate) *[]x509.Certificate {
