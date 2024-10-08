@@ -3,6 +3,7 @@ package uzi_vc_issuer
 import (
 	"encoding/base64"
 	"github.com/stretchr/testify/assert"
+	"log"
 	"os"
 	"strings"
 	"testing"
@@ -10,7 +11,12 @@ import (
 
 func TestParseFileOrPath(t *testing.T) {
 	tempFile, _ := os.CreateTemp("", "test")
-	defer os.Remove(tempFile.Name())
+	defer func(name string) {
+		err := os.Remove(name)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}(tempFile.Name())
 	pemType := "CERTIFICATE"
 
 	t.Run("FileExistsAndIsNotDirectory", func(t *testing.T) {
@@ -27,7 +33,12 @@ func TestParseFileOrPath(t *testing.T) {
 	})
 
 	tempDir, _ := os.MkdirTemp("", "testdir")
-	defer os.RemoveAll(tempDir)
+	defer func(path string) {
+		err := os.RemoveAll(path)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}(tempDir)
 
 	t.Run("PathIsDirectory", func(t *testing.T) {
 		pemReader := NewPemReader()
@@ -46,7 +57,12 @@ func TestParseFileOrPath(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer os.Remove(file.Name())
+		defer func(name string) {
+			err := os.Remove(name)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}(file.Name())
 		certs, chainPem, _, _, _, err := BuildCertChain("2312312")
 		assert.NoError(t, err)
 		for i := 0; i < chainPem.Len(); i++ {
@@ -78,13 +94,17 @@ func TestParseFileOrPath(t *testing.T) {
 		certs, chainPem, _, _, _, err := BuildCertChain("2312312")
 		assert.NoError(t, err)
 		tempDir, _ := os.MkdirTemp("", "example")
-		defer os.RemoveAll(tempDir)
+		defer func(path string) {
+			err := os.RemoveAll(path)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}(tempDir)
 		for i := 0; i < chainPem.Len(); i++ {
 			certBlock, ok := chainPem.Get(i)
 			certAsString := convertToString(certBlock)
 			file, err := os.CreateTemp(tempDir, "prefix")
 			assert.NoError(t, err)
-			defer os.Remove(file.Name())
 			if ok {
 				_, err := file.WriteString(certAsString)
 				assert.NoError(t, err)

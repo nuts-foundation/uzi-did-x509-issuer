@@ -180,7 +180,7 @@ func BuildCertChain(uzi string) (*[]x509.Certificate, *cert.Chain, *x509.Certifi
 	return &_chain, chainPems, rootCert, signingKey, signingCert, nil
 }
 
-// CertTemplate generates a template for an x509 certificate with a given serial number. If no serial number is provided, a random one is generated.
+// CertTemplate generates a template for a x509 certificate with a given serial number. If no serial number is provided, a random one is generated.
 // The certificate is valid for one month and uses SHA256 with RSA for the signature algorithm.
 func CertTemplate(serialNumber *big.Int) (*x509.Certificate, error) {
 	// generate a random serial number (a real cert authority would have some logic behind this)
@@ -199,7 +199,7 @@ func CertTemplate(serialNumber *big.Int) (*x509.Certificate, error) {
 	return &tmpl, nil
 }
 
-// SigningCertTemplate creates an x509.Certificate template for a signing certificate with an optional serial number.
+// SigningCertTemplate creates a x509.Certificate template for a signing certificate with an optional serial number.
 func SigningCertTemplate(serialNumber *big.Int) (*x509.Certificate, error) {
 	// generate a random serial number (a real cert authority would have some logic behind this)
 	if serialNumber == nil {

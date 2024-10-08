@@ -1,6 +1,6 @@
 .PHONY: test run-generators all-docs
 
-run-generators: gen-mocks gen-api gen-protobuf
+run-generators: gen-mocks
 
 install-tools:
 	go install go.uber.org/mock/mockgen@v0.4.0
