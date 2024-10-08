@@ -109,7 +109,7 @@ func TestParseChain(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := parser.ParseChain(tc.derChain)
+			_, err := parser.ParseCertificates(tc.derChain)
 			if err != nil {
 				if err.Error() != tc.errMsg {
 					t.Errorf("got error %v, want %v", err, tc.errMsg)

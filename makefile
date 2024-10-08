@@ -8,7 +8,7 @@ install-tools:
 
 gen-mocks:
 	mockgen -destination=ura_vc/did_x509_mock.go -package=ura_vc -source=ura_vc/did_x509.go
-	mockgen -destination=ura_vc/x509_chain_mock.go -package=ura_vc -source=ura_vc/x509_chain.go
+	mockgen -destination=ura_vc/x509_cert_mock.go -package=ura_vc -source=ura_vc/x509_cert.go
 	mockgen -destination=ura_vc/pem_reader_mock.go -package=ura_vc -source=ura_vc/pem_reader.go
 
 lint:

@@ -10,7 +10,7 @@ import (
 
 type VC struct {
 	CertificateFile string `arg:"" name:"certificate_file" help:"Certificate PEM file." type:"file"`
-	SigningKey      string `arg:"" name:"key" help:"PEM key for signing." type:"key"`
+	SigningKey      string `arg:"" name:"signing_key" help:"PEM key for signing." type:"key"`
 	SubjectDID      string `arg:"" name:"subject_did" help:"The subject DID of the VC." type:"key"`
 	SubjectName     string `arg:"" name:"subject_name" help:"The subject name of the VC." type:"key"`
 }
@@ -34,7 +34,7 @@ func main() {
 	command := ctx.Command()
 	//cliInterface := cli.NewCliInterface()
 	switch command {
-	case "vc <certificate_file> <key> <subject_did> <subject_name>":
+	case "vc <certificate_file> <signing_key> <subject_did> <subject_name>":
 		vc := cli.Vc
 		jwt, err := handleVc(vc)
 		if err != nil {
@@ -83,7 +83,7 @@ func handleVc(vc VC) (string, error) {
 		return "", err
 	}
 
-	certChain, err := chainParser.ParseChain(chain)
+	certChain, err := chainParser.ParseCertificates(chain)
 	if err != nil {
 		return "", err
 	}

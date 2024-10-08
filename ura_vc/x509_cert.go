@@ -31,9 +31,10 @@ func Hash(data []byte, alg string) ([]byte, error) {
 	return nil, fmt.Errorf("unsupported hash algorithm: %s", alg)
 }
 
-// ChainParser defines an interface for parsing certificate chains from PEM encoded string slices.
 type ChainParser interface {
-	ParseChain(chainPem []string) ([]*x509.Certificate, error)
+
+	// ParseCertificates parses a chain of DER-encoded certificates into an array of x509.Certificate objects.
+	ParseCertificates(derChain *[][]byte) (*[]x509.Certificate, error)
 }
 
 // DefaultChainParser handles the parsing of certificate chains and private keys.
@@ -44,8 +45,9 @@ func NewDefaultChainParser() *DefaultChainParser {
 	return &DefaultChainParser{}
 }
 
-// ParseChain takes a pointer to a slice of DER-encoded certificates and returns a slice of x509.Certificate objects.
-func (c DefaultChainParser) ParseChain(derChain *[][]byte) (*[]x509.Certificate, error) {
+// ParseCertificates parses a slice of DER-encoded byte arrays into a slice of x509.Certificate.
+// It returns an error if any of the certificates cannot be parsed.
+func (c DefaultChainParser) ParseCertificates(derChain *[][]byte) (*[]x509.Certificate, error) {
 	if derChain == nil {
 		return nil, fmt.Errorf("derChain is nil")
 	}
