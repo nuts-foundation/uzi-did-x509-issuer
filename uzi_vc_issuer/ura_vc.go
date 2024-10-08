@@ -34,11 +34,11 @@ func NewUraVcBuilder(didCreator DidCreator) *UraVcBuilder {
 // BuildUraVerifiableCredential constructs a verifiable credential with specified certificates, signing key, subject DID, and subject name.
 func (v UraVcBuilder) BuildUraVerifiableCredential(certificates *[]x509.Certificate, signingKey *rsa.PrivateKey, subjectDID string, subjectName string) (*vc.VerifiableCredential, error) {
 	signingCert, ura, err := FindSigningCertificate(certificates)
-	chain := BuildCertificateChain(certificates, signingCert)
-	err = validateChain(chain)
 	if err != nil {
 		return nil, err
 	}
+	chain := BuildCertificateChain(certificates, signingCert)
+	err = validateChain(chain)
 	if err != nil {
 		return nil, err
 	}
