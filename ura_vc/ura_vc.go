@@ -1,6 +1,7 @@
 package ura_vc
 
 import (
+	"bytes"
 	"context"
 	"crypto/rsa"
 	"crypto/sha1"
@@ -60,7 +61,7 @@ func (v UraVcBuilder) BuildUraVerifiableCredential(certs *[]x509.Certificate, si
 		}
 
 		// x5c
-		serializedCert, err := marshalChain(certs)
+		serializedCert, err := marshalChain(certs, signingCert)
 		if err != nil {
 			return "", err
 		}
@@ -87,9 +88,14 @@ func (v UraVcBuilder) BuildUraVerifiableCredential(certs *[]x509.Certificate, si
 
 // marshalChain converts a slice of x509.Certificate instances to a cert.Chain, encoding each certificate as PEM.
 // It returns the PEM-encoded cert.Chain and an error if the encoding or header fixation fails.
-func marshalChain(certs *[]x509.Certificate) (*cert.Chain, error) {
+func marshalChain(certificates *[]x509.Certificate, signingCert *x509.Certificate) (*cert.Chain, error) {
+	certificates = BuildCertificateChain(certificates, signingCert)
+	err := validateChain(certificates)
+	if err != nil {
+		return nil, err
+	}
 	chainPems := &cert.Chain{}
-	for _, certificate := range *certs {
+	for _, certificate := range *certificates {
 		bytes := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certificate.Raw})
 		err := chainPems.Add(bytes)
 		if err != nil {
@@ -98,6 +104,47 @@ func marshalChain(certs *[]x509.Certificate) (*cert.Chain, error) {
 	}
 	headers, err := fixChainHeaders(chainPems)
 	return headers, err
+}
+
+func validateChain(certificates *[]x509.Certificate) error {
+	certs := *certificates
+	var prev *x509.Certificate = nil
+	for i, _ := range certs {
+		certificate := certs[len(certs)-i-1]
+		if prev != nil {
+			err := prev.CheckSignatureFrom(&certificate)
+			if err != nil {
+				return err
+			}
+		}
+		if isRootCa(&certificate) {
+			return nil
+		}
+		prev = &certificate
+	}
+	return errors.New("failed to find a root certificate in chain")
+}
+
+func BuildCertificateChain(certs *[]x509.Certificate, signingCert *x509.Certificate) *[]x509.Certificate {
+	var chain []x509.Certificate
+	if signingCert == nil {
+		return &chain
+	}
+	if !isRootCa(signingCert) {
+		for _, parent := range *certs {
+			err := signingCert.CheckSignatureFrom(&parent)
+			if err == nil {
+				parentChain := BuildCertificateChain(certs, &parent)
+				chain = append(chain, *parentChain...)
+			}
+		}
+	}
+	chain = append(chain, *signingCert)
+	return &chain
+}
+
+func isRootCa(signingCert *x509.Certificate) bool {
+	return signingCert.IsCA && bytes.Equal(signingCert.RawIssuer, signingCert.RawSubject)
 }
 
 // convertClaims converts a map of claims to a JWT token.
@@ -131,7 +178,7 @@ func uraCredential(did string, ura string, uzi string, subjectDID string, subjec
 	return vc.VerifiableCredential{
 		Issuer:         ssi.MustParseURI(did),
 		Context:        []ssi.URI{ssi.MustParseURI("https://www.w3.org/2018/credentials/v1")},
-		Type:           []ssi.URI{ssi.MustParseURI("VerifiableCredential"), ssi.MustParseURI("PkiOverheidUraCredential")},
+		Type:           []ssi.URI{ssi.MustParseURI("VerifiableCredential"), ssi.MustParseURI("UziServerCertificateCredential")},
 		ID:             func() *ssi.URI { id := ssi.MustParseURI(uuid.NewString()); return &id }(),
 		IssuanceDate:   iat,
 		ExpirationDate: &exp,

@@ -9,7 +9,7 @@ import (
 )
 
 type VC struct {
-	ChainFileOrPath string `arg:"" name:"chain_file_or_dir" help:"PEM file or path to directory." type:"file"`
+	CertificateFile string `arg:"" name:"certificate_file" help:"Certificate PEM file." type:"file"`
 	SigningKey      string `arg:"" name:"key" help:"PEM key for signing." type:"key"`
 	SubjectDID      string `arg:"" name:"subject_did" help:"The subject DID of the VC." type:"key"`
 	SubjectName     string `arg:"" name:"subject_name" help:"The subject name of the VC." type:"key"`
@@ -34,10 +34,7 @@ func main() {
 	command := ctx.Command()
 	//cliInterface := cli.NewCliInterface()
 	switch command {
-	case "vc <uzi>":
-		err := fmt.Errorf("missing required argument: --file or --path")
-		parser.FatalIfErrorf(err)
-	case "vc <chain_file_or_dir> <key> <subject_did> <subject_name>":
+	case "vc <certificate_file> <key> <subject_did> <subject_name>":
 		vc := cli.Vc
 		jwt, err := handleVc(vc)
 		if err != nil {
@@ -53,10 +50,17 @@ func main() {
 
 func handleVc(vc VC) (string, error) {
 	reader := ura_vc.NewPemReader()
-	chain, err := reader.ParseFileOrPath(vc.ChainFileOrPath, "CERTIFICATE")
+	certificate, err := reader.ParseFileOrPath(vc.CertificateFile, "CERTIFICATE")
 	if err != nil {
 		return "", err
 	}
+	chain, err := reader.ParseFileOrPath("chain", "CERTIFICATE")
+	if err != nil {
+		return "", err
+	}
+	_chain := append(*chain, *certificate...)
+	chain = &_chain
+
 	signingKeys, err := reader.ParseFileOrPath(vc.SigningKey, "PRIVATE KEY")
 	if err != nil {
 		return "", err
