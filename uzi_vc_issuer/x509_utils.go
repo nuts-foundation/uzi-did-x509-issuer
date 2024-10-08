@@ -22,17 +22,23 @@ type PermanentIdentifier struct {
 	Assigner        asn1.ObjectIdentifier `asn1:"tag:6,optional"`
 }
 
-// FindUra extracts the SerialNumber from the Subject of a signing certificate in the given certificate chain.
-// It returns an error if the signing certificate cannot be found or if the SerialNumber is not present.
-func FindUra(chain *[]x509.Certificate) (string, error) {
-	_, ura, err := FindSigningCertificate(chain)
+func FindUra(certificate *x509.Certificate) (string, error) {
+	identifier, err := FindPermanentIdentifierValue(certificate)
 	if err != nil {
 		return "", err
 	}
-	if ura == "" {
-		return "", errors.New("no SerialNumber found in certificate's Subject")
+	if identifier != nil && identifier.IdentifierValue != "" {
+		return identifier.IdentifierValue, nil
 	}
-	return ura, nil
+	otherNameValue, err := FindOtherNameValue(certificate)
+	if err != nil {
+		return "", err
+	}
+	if otherNameValue != "" {
+		return otherNameValue, nil
+	}
+	err = errors.New("no certificate found in the SAN attributes, please check if the certificate is an UZI Server Certificate")
+	return "", err
 }
 
 // FindPermanentIdentifierValue extracts the PermanentIdentifier from the provided x509.Certificate if it exists.
@@ -150,25 +156,19 @@ func processSANSequence(rest []byte, callback func(tag int, data []byte) error) 
 // FindSigningCertificate searches the provided certificate chain for a certificate with a specific SAN and Permanent Identifier.
 // It returns the found certificate, its IdentifierValue, and an error if no matching certificate is found.
 func FindSigningCertificate(chain *[]x509.Certificate) (*x509.Certificate, string, error) {
+	if len(*chain) == 0 {
+		return nil, "", fmt.Errorf("no certificates provided")
+	}
+	var err error
+	var ura string
 	for _, cert := range *chain {
-		identifier, err := FindPermanentIdentifierValue(&cert)
+		ura, err = FindUra(&cert)
 		if err != nil {
-			return nil, "", err
+			continue
 		}
-		if identifier != nil && identifier.IdentifierValue != "" {
-			return &cert, identifier.IdentifierValue, nil
-		}
-		otherNameValue, err := FindOtherNameValue(&cert)
-		if err != nil {
-			return nil, "", err
-		}
-		if otherNameValue != "" {
-			return &cert, otherNameValue, nil
+		if ura != "" {
+			return &cert, ura, nil
 		}
 	}
-	err := fmt.Errorf("no certificate found with a URA code in SAN subjectAltName (%s) and attribute Permanent Identifier (%s) or otherName (%s)",
-		SubjectAlternativeNameType.String(),
-		PermanentIdentifierType.String(),
-		OtherNameType.String())
 	return nil, "", err
 }

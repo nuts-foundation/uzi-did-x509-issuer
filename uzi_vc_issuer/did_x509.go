@@ -55,7 +55,11 @@ func FormatDid(chain *[]x509.Certificate, policy string) (string, error) {
 // It extracts the Unique Registration Address (URA) from the chain, creates a policy with it, and formats the DID.
 // Returns the generated DID or an error if any step fails.
 func (d *DefaultDidCreator) CreateDid(chain *[]x509.Certificate) (string, error) {
-	ura, err := FindUra(chain)
+	certificate, _, err := FindSigningCertificate(chain)
+	if err != nil || certificate == nil {
+		return "", err
+	}
+	ura, err := FindUra(certificate)
 	if err != nil {
 		return "", err
 	}

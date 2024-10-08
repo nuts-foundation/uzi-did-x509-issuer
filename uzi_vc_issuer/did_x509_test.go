@@ -47,7 +47,7 @@ func TestDefaultDidCreator_CreateDid(t *testing.T) {
 			fields: fields{},
 			args:   args{chain: &[]x509.Certificate{}},
 			want:   "",
-			errMsg: "no certificate found with SAN subjectAltName (2.5.29.17) and attribute Permanent Identifier (1.3.6.1.5.5.7.8.3)",
+			errMsg: "no certificates provided",
 		},
 		{
 			name:   "Test case 2",
@@ -56,7 +56,7 @@ func TestDefaultDidCreator_CreateDid(t *testing.T) {
 				{},
 			}},
 			want:   "",
-			errMsg: "no certificate found with SAN subjectAltName (2.5.29.17) and attribute Permanent Identifier (1.3.6.1.5.5.7.8.3)",
+			errMsg: "no certificate found in the SAN attributes, please check if the certificate is an UZI Server Certificate",
 		},
 		{
 			name:   "Happy path",
