@@ -41,6 +41,7 @@ func main() {
 		vc := cli.Vc
 		jwt, err := handleVc(vc)
 		if err != nil {
+			fmt.Println(err)
 			panic(err)
 		}
 		println(jwt)
@@ -86,6 +87,9 @@ func handleVc(vc VC) (string, error) {
 	creator := ura_vc.NewDidCreator()
 	builder := ura_vc.NewUraVcBuilder(creator)
 	credential, err := builder.BuildUraVerifiableCredential(certChain, privateKey, vc.SubjectDID, vc.SubjectName)
+	if err != nil {
+		return "", err
+	}
 	marshal, err := json.Marshal(credential)
 	if err != nil {
 		return "", err

@@ -2,25 +2,28 @@ package ura_vc
 
 import (
 	"encoding/pem"
-	"io/ioutil"
 	"os"
 )
 
-type PemReader struct {
+type PemReader interface {
+	ParseFileOrPath(path string, pemType string) (*[][]byte, error)
 }
 
-func NewPemReader() *PemReader {
-	return &PemReader{}
+type DefaultPemReader struct {
 }
 
-func (p *PemReader) ParseFileOrPath(path string, pemType string) (*[][]byte, error) {
+func NewPemReader() *DefaultPemReader {
+	return &DefaultPemReader{}
+}
+
+func (p *DefaultPemReader) ParseFileOrPath(path string, pemType string) (*[][]byte, error) {
 	fileInfo, err := os.Stat(path)
 	if err != nil {
 		return nil, err
 	}
 	if fileInfo.IsDir() {
 		files := make([][]byte, 0)
-		dir, err := ioutil.ReadDir(path)
+		dir, err := os.ReadDir(path)
 		if err != nil {
 			return nil, nil
 		}
@@ -32,9 +35,7 @@ func (p *PemReader) ParseFileOrPath(path string, pemType string) (*[][]byte, err
 			if err != nil {
 				return nil, err
 			}
-			for _, block := range *blocks {
-				files = append(files, block)
-			}
+			files = append(files, *blocks...)
 		}
 		return &files, nil
 	} else {
@@ -46,15 +47,13 @@ func (p *PemReader) ParseFileOrPath(path string, pemType string) (*[][]byte, err
 
 func readFile(filename string, pemType string) (*[][]byte, error) {
 	files := make([][]byte, 0)
-	content, err := ioutil.ReadFile(filename)
+	content, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
 	if looksLineCert(content, pemType) {
 		foundBlocks := parsePemBlocks(content, pemType)
-		for _, block := range *foundBlocks {
-			files = append(files, block)
-		}
+		files = append(files, *foundBlocks...)
 	}
 	return &files, nil
 }

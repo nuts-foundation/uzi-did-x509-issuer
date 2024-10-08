@@ -29,6 +29,9 @@ func TestDefaultDidCreator_CreateDid(t *testing.T) {
 
 	alg := "sha512"
 	hash, err := Hash(rootCert.Raw, alg)
+	if err != nil {
+		t.Fatal(err)
+	}
 	rootHashString := base64.RawURLEncoding.EncodeToString(hash)
 	tests := []struct {
 		name   string
@@ -167,6 +170,9 @@ func BuildCertChain(uzi string) (*[]x509.Certificate, *cert.Chain, *x509.Certifi
 		return nil, nil, nil, nil, nil, err
 	}
 	chainPems, err = fixChainHeaders(chainPems)
+	if err != nil {
+		return nil, nil, nil, nil, nil, err
+	}
 	_chain := chain[:]
 	return &_chain, chainPems, rootCert, signingKey, signingCert, nil
 }
@@ -201,12 +207,17 @@ func SigningCertTemplate(serialNumber *big.Int) (*x509.Certificate, error) {
 	}
 
 	bytes, err := asn1.MarshalWithParams(list, "tag:0")
-
+	if err != nil {
+		return nil, err
+	}
 	list, err = toRawList(asn1.RawValue{Tag: 0, Class: 2, IsCompound: true, Bytes: bytes})
 	if err != nil {
 		return nil, err
 	}
 	marshal, err := asn1.MarshalWithParams(list, "tag:0")
+	if err != nil {
+		return nil, err
+	}
 
 	//err = DebugUnmarshall(marshal, 0)
 	permanentIdentifier := PermanentIdentifier{
@@ -214,6 +225,9 @@ func SigningCertTemplate(serialNumber *big.Int) (*x509.Certificate, error) {
 		Assigner:        UraAssigner,
 	}
 	raw, err := toRawValue(permanentIdentifier, "")
+	if err != nil {
+		return nil, err
+	}
 	otherName := OtherName{
 		TypeID: PermanentIdentifierType,
 		Value: asn1.RawValue{
@@ -225,10 +239,16 @@ func SigningCertTemplate(serialNumber *big.Int) (*x509.Certificate, error) {
 	}
 
 	raw, err = toRawValue(otherName, "tag:0")
+	if err != nil {
+		return nil, err
+	}
 	list = []asn1.RawValue{}
 	list = append(list, *raw)
 	//fmt.Println("OFF")
 	marshal, err = asn1.Marshal(list)
+	if err != nil {
+		return nil, err
+	}
 	//err = DebugUnmarshall(marshal, 0)
 
 	tmpl := x509.Certificate{

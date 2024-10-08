@@ -29,6 +29,9 @@ func NewUraVcBuilder(didCreator DidCreator) *UraVcBuilder {
 
 func (v UraVcBuilder) BuildUraVerifiableCredential(certs *[]x509.Certificate, signingKey *rsa.PrivateKey, subjectDID string, subjectName string) (*vc.VerifiableCredential, error) {
 	signingCert, ura, err := FindSigningCertificate(certs)
+	if err != nil {
+		return nil, err
+	}
 	did, err := v.didCreator.CreateDid(certs)
 	if err != nil {
 		return nil, err

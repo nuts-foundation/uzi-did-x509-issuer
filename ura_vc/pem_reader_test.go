@@ -3,14 +3,13 @@ package ura_vc
 import (
 	"encoding/base64"
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
 )
 
 func TestParseFileOrPath(t *testing.T) {
-	tempFile, _ := ioutil.TempFile("", "test")
+	tempFile, _ := os.CreateTemp("", "test")
 	defer os.Remove(tempFile.Name())
 	pemType := "CERTIFICATE"
 
@@ -27,7 +26,7 @@ func TestParseFileOrPath(t *testing.T) {
 		assert.Error(t, err)
 	})
 
-	tempDir, _ := ioutil.TempDir("", "testdir")
+	tempDir, _ := os.MkdirTemp("", "testdir")
 	defer os.RemoveAll(tempDir)
 
 	t.Run("PathIsDirectory", func(t *testing.T) {
@@ -43,12 +42,13 @@ func TestParseFileOrPath(t *testing.T) {
 	})
 	t.Run("Happy flow single file", func(t *testing.T) {
 		pemReader := NewPemReader()
-		file, err := ioutil.TempFile(tempDir, "prefix")
+		file, err := os.CreateTemp(tempDir, "prefix")
 		if err != nil {
 			t.Fatal(err)
 		}
 		defer os.Remove(file.Name())
 		certs, chainPem, _, _, _, err := BuildCertChain("2312312")
+		assert.NoError(t, err)
 		for i := 0; i < chainPem.Len(); i++ {
 			certBlock, ok := chainPem.Get(i)
 			certAsString := convertToString(certBlock)
@@ -76,21 +76,18 @@ func TestParseFileOrPath(t *testing.T) {
 	t.Run("Happy flow directory", func(t *testing.T) {
 		pemReader := NewPemReader()
 		certs, chainPem, _, _, _, err := BuildCertChain("2312312")
-		tempDir, _ := ioutil.TempDir("", "example")
+		assert.NoError(t, err)
+		tempDir, _ := os.MkdirTemp("", "example")
 		defer os.RemoveAll(tempDir)
 		for i := 0; i < chainPem.Len(); i++ {
 			certBlock, ok := chainPem.Get(i)
 			certAsString := convertToString(certBlock)
-			file, err := ioutil.TempFile(tempDir, "prefix")
-			if err != nil {
-				t.Fatal(err)
-			}
+			file, err := os.CreateTemp(tempDir, "prefix")
+			assert.NoError(t, err)
 			defer os.Remove(file.Name())
 			if ok {
 				_, err := file.WriteString(certAsString)
-				if err != nil {
-					t.Fatal(err)
-				}
+				assert.NoError(t, err)
 			} else {
 				t.Fail()
 			}
