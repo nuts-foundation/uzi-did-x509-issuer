@@ -4,7 +4,7 @@ run-generators: gen-mocks gen-api gen-protobuf
 
 install-tools:
 	go install go.uber.org/mock/mockgen@v0.4.0
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.57.2
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.60.1
 
 gen-mocks:
 	mockgen -destination=ura_vc/did_x509_mock.go -package=ura_vc -source=ura_vc/did_x509.go

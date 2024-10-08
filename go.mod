@@ -5,7 +5,7 @@ go 1.23.1
 require (
 	github.com/alecthomas/kong v1.2.1
 	github.com/google/uuid v1.6.0
-	github.com/lestrrat-go/jwx/v2 v2.0.21
+	github.com/lestrrat-go/jwx/v2 v2.1.1
 	github.com/nuts-foundation/go-did v0.14.0
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/mock v0.4.0
@@ -15,10 +15,10 @@ require (
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.3.0 // indirect
-	github.com/goccy/go-json v0.10.2 // indirect
+	github.com/goccy/go-json v0.10.3 // indirect
 	github.com/lestrrat-go/blackmagic v1.0.2 // indirect
 	github.com/lestrrat-go/httpcc v1.0.1 // indirect
-	github.com/lestrrat-go/httprc v1.0.5 // indirect
+	github.com/lestrrat-go/httprc v1.0.6 // indirect
 	github.com/lestrrat-go/iter v1.0.2 // indirect
 	github.com/lestrrat-go/option v1.0.1 // indirect
 	github.com/mr-tron/base58 v1.1.0 // indirect
