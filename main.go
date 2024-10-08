@@ -57,6 +57,9 @@ func handleVc(vc VC) (string, error) {
 		return "", err
 	}
 	signingKeys, err := reader.ParseFileOrPath(vc.SigningKey, "PRIVATE KEY")
+	if err != nil {
+		return "", err
+	}
 	if signingKeys == nil {
 		err := fmt.Errorf("no signing keys found")
 		return "", err
