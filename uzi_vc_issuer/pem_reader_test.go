@@ -1,4 +1,4 @@
-package ura_vc
+package uzi_vc_issuer
 
 import (
 	"encoding/base64"

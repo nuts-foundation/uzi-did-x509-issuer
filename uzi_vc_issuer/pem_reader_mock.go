@@ -7,7 +7,7 @@
 //
 
 // Package ura_vc is a generated GoMock package.
-package ura_vc
+package uzi_vc_issuer
 
 import (
 	reflect "reflect"

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/alecthomas/kong"
-	"headease-nuts-pki-overheid-issuer/ura_vc"
+	"headease-nuts-pki-overheid-issuer/uzi_vc_issuer"
 	"os"
 )
 
@@ -49,7 +49,7 @@ func main() {
 }
 
 func handleVc(vc VC) (string, error) {
-	reader := ura_vc.NewPemReader()
+	reader := uzi_vc_issuer.NewPemReader()
 	certificate, err := reader.ParseFileOrPath(vc.CertificateFile, "CERTIFICATE")
 	if err != nil {
 		return "", err
@@ -77,7 +77,7 @@ func handleVc(vc VC) (string, error) {
 		err := fmt.Errorf("no signing keys found")
 		return "", err
 	}
-	chainParser := ura_vc.NewDefaultChainParser()
+	chainParser := uzi_vc_issuer.NewDefaultChainParser()
 	privateKey, err := chainParser.ParsePrivateKey(signingKey)
 	if err != nil {
 		return "", err
@@ -88,8 +88,8 @@ func handleVc(vc VC) (string, error) {
 		return "", err
 	}
 
-	creator := ura_vc.NewDidCreator()
-	builder := ura_vc.NewUraVcBuilder(creator)
+	creator := uzi_vc_issuer.NewDidCreator()
+	builder := uzi_vc_issuer.NewUraVcBuilder(creator)
 	credential, err := builder.BuildUraVerifiableCredential(certChain, privateKey, vc.SubjectDID, vc.SubjectName)
 	if err != nil {
 		return "", err
