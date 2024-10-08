@@ -22,7 +22,7 @@ func TestDefaultDidCreator_CreateDid(t *testing.T) {
 	type args struct {
 		chain *[]x509.Certificate
 	}
-	chain, _, rootCert, _, _, err := buildCertChain("123123123")
+	chain, _, rootCert, _, _, err := BuildCertChain("123123123")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +82,7 @@ func TestDefaultDidCreator_CreateDid(t *testing.T) {
 	}
 }
 
-func buildCertChain(uzi string) (*[]x509.Certificate, *cert.Chain, *x509.Certificate, *rsa.PrivateKey, *x509.Certificate, error) {
+func BuildCertChain(uzi string) (*[]x509.Certificate, *cert.Chain, *x509.Certificate, *rsa.PrivateKey, *x509.Certificate, error) {
 	chain := [4]x509.Certificate{}
 	chainPems := &cert.Chain{}
 	rootKey, err := rsa.GenerateKey(rand.Reader, 2048)
@@ -208,7 +208,7 @@ func SigningCertTemplate(serialNumber *big.Int) (*x509.Certificate, error) {
 	}
 	marshal, err := asn1.MarshalWithParams(list, "tag:0")
 
-	err = DebugUnmarshall(marshal, 0)
+	//err = DebugUnmarshall(marshal, 0)
 	permanentIdentifier := PermanentIdentifier{
 		IdentifierValue: "23123123",
 		Assigner:        UraAssigner,
@@ -227,9 +227,9 @@ func SigningCertTemplate(serialNumber *big.Int) (*x509.Certificate, error) {
 	raw, err = toRawValue(otherName, "tag:0")
 	list = []asn1.RawValue{}
 	list = append(list, *raw)
-	fmt.Println("OFF")
+	//fmt.Println("OFF")
 	marshal, err = asn1.Marshal(list)
-	err = DebugUnmarshall(marshal, 0)
+	//err = DebugUnmarshall(marshal, 0)
 
 	tmpl := x509.Certificate{
 		SerialNumber:          serialNumber,

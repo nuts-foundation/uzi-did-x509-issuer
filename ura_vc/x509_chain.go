@@ -59,5 +59,11 @@ func (c DefaultChainParser) ParsePrivateKey(der *[]byte) (*rsa.PrivateKey, error
 		return nil, fmt.Errorf("der is nil")
 	}
 	key, err := x509.ParsePKCS8PrivateKey(*der)
+	if err != nil {
+		return nil, err
+	}
+	if _, ok := key.(*rsa.PrivateKey); !ok {
+		return nil, fmt.Errorf("key is not RSA")
+	}
 	return key.(*rsa.PrivateKey), err
 }

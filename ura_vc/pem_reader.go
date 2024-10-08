@@ -16,7 +16,7 @@ func NewPemReader() *PemReader {
 func (p *PemReader) ParseFileOrPath(path string, pemType string) (*[][]byte, error) {
 	fileInfo, err := os.Stat(path)
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 	if fileInfo.IsDir() {
 		files := make([][]byte, 0)
