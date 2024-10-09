@@ -35,6 +35,7 @@ type ChainParser interface {
 
 	// ParseCertificates parses a chain of DER-encoded certificates into an array of x509.Certificate objects.
 	ParseCertificates(derChain *[][]byte) (*[]x509.Certificate, error)
+	ParsePrivateKey(der *[]byte) (*rsa.PrivateKey, error)
 }
 
 // DefaultChainParser handles the parsing of certificate chains and private keys.

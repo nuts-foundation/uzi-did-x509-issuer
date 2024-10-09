@@ -38,11 +38,9 @@ func TestBuildUraVerifiableCredential(t *testing.T) {
 			},
 		},
 	}
-
-	didCreator := func() DidCreator {
-		return NewMockDidCreator(ctrl)
-	}
-	builder := NewUraVcBuilder(didCreator())
+	creator := NewMockDidCreator(ctrl)
+	parser := NewMockChainParser(ctrl)
+	builder := NewUraVcBuilder(creator, parser)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

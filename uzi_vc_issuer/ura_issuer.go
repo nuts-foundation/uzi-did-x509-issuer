@@ -7,8 +7,10 @@ import (
 	"crypto/sha1"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"github.com/google/uuid"
 	"github.com/lestrrat-go/jwx/v2/cert"
 	"github.com/lestrrat-go/jwx/v2/jwa"
@@ -20,19 +22,77 @@ import (
 )
 import "github.com/nuts-foundation/go-did/vc"
 
-// UraVcBuilder is responsible for building URA (UZI-register abonneenummer) Verifiable Credentials.
-// It utilizes a DidCreator to generate Decentralized Identifiers (DIDs) given a chain of x509 certificates.
-type UraVcBuilder struct {
-	didCreator DidCreator
+type UraIssuer interface {
+
+	// Issue generates a digital certificate from the given certificate file and signing key file for the subject.
+	Issue(certificateFile string, signingKeyFile string, subjectDID string, subjectName string) (string, error)
 }
 
-// NewUraVcBuilder initializes and returns a new instance of UraVcBuilder with the provided DidCreator.
-func NewUraVcBuilder(didCreator DidCreator) *UraVcBuilder {
-	return &UraVcBuilder{didCreator}
+// DefaultUraIssuer is responsible for building URA (UZI-register abonneenummer) Verifiable Credentials.
+// It utilizes a DidCreator to generate Decentralized Identifiers (DIDs) given a chain of x509 certificates.
+type DefaultUraIssuer struct {
+	didCreator  DidCreator
+	chainParser ChainParser
+}
+
+// NewUraVcBuilder initializes and returns a new instance of DefaultUraIssuer with the provided DidCreator.
+func NewUraVcBuilder(didCreator DidCreator, chainParser ChainParser) *DefaultUraIssuer {
+	return &DefaultUraIssuer{didCreator, chainParser}
+}
+
+// Issue generates a URA Verifiable Credential using provided certificate, signing key, subject DID, and subject name.
+func (u DefaultUraIssuer) Issue(certificateFile string, signingKeyFile string, subjectDID string, subjectName string) (string, error) {
+	reader := NewPemReader()
+	certificate, err := reader.ParseFileOrPath(certificateFile, "CERTIFICATE")
+	if err != nil {
+		return "", err
+	}
+	chain, err := reader.ParseFileOrPath("ca_certs", "CERTIFICATE")
+	if err != nil {
+		return "", err
+	}
+	_chain := append(*chain, *certificate...)
+	chain = &_chain
+
+	signingKeys, err := reader.ParseFileOrPath(signingKeyFile, "PRIVATE KEY")
+	if err != nil {
+		return "", err
+	}
+	if signingKeys == nil {
+		err := fmt.Errorf("no signing keys found")
+		return "", err
+
+	}
+	var signingKey *[]byte
+	if len(*signingKeys) == 1 {
+		signingKey = &(*signingKeys)[0]
+	} else {
+		err := fmt.Errorf("no signing keys found")
+		return "", err
+	}
+	privateKey, err := u.chainParser.ParsePrivateKey(signingKey)
+	if err != nil {
+		return "", err
+	}
+
+	certChain, err := u.chainParser.ParseCertificates(chain)
+	if err != nil {
+		return "", err
+	}
+
+	credential, err := u.BuildUraVerifiableCredential(certChain, privateKey, subjectDID, subjectName)
+	if err != nil {
+		return "", err
+	}
+	marshal, err := json.Marshal(credential)
+	if err != nil {
+		return "", err
+	}
+	return string(marshal), nil
 }
 
 // BuildUraVerifiableCredential constructs a verifiable credential with specified certificates, signing key, subject DID, and subject name.
-func (v UraVcBuilder) BuildUraVerifiableCredential(certificates *[]x509.Certificate, signingKey *rsa.PrivateKey, subjectDID string, subjectName string) (*vc.VerifiableCredential, error) {
+func (v DefaultUraIssuer) BuildUraVerifiableCredential(certificates *[]x509.Certificate, signingKey *rsa.PrivateKey, subjectDID string, subjectName string) (*vc.VerifiableCredential, error) {
 	signingCert, ura, err := FindSigningCertificate(certificates)
 	if err != nil {
 		return nil, err

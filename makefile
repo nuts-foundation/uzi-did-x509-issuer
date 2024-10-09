@@ -7,9 +7,9 @@ install-tools:
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.60.1
 
 gen-mocks:
-	mockgen -destination=ura_vc/did_x509_mock.go -package=ura_vc -source=ura_vc/did_x509.go
-	mockgen -destination=ura_vc/x509_cert_mock.go -package=ura_vc -source=ura_vc/x509_cert.go
-	mockgen -destination=ura_vc/pem_reader_mock.go -package=ura_vc -source=ura_vc/pem_reader.go
+	mockgen -destination=uzi_vc_issuer/did_x509_mock.go -package=uzi_vc_issuer -source=uzi_vc_issuer/did_x509.go
+	mockgen -destination=uzi_vc_issuer/x509_cert_mock.go -package=uzi_vc_issuer -source=uzi_vc_issuer/x509_cert.go
+	mockgen -destination=uzi_vc_issuer/pem_reader_mock.go -package=uzi_vc_issuer -source=uzi_vc_issuer/pem_reader.go
 
 lint:
 	golangci-lint run -v
