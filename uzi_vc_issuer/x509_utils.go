@@ -22,23 +22,23 @@ type PermanentIdentifier struct {
 	Assigner        asn1.ObjectIdentifier `asn1:"tag:6,optional"`
 }
 
-func FindUra(certificate *x509.Certificate) (string, error) {
+func FindUra(certificate *x509.Certificate) (string, string, error) {
 	identifier, err := FindPermanentIdentifierValue(certificate)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	if identifier != nil && identifier.IdentifierValue != "" {
-		return identifier.IdentifierValue, nil
+		return identifier.IdentifierValue, "otherName.permanentIdentifier", nil
 	}
 	otherNameValue, err := FindOtherNameValue(certificate)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	if otherNameValue != "" {
-		return otherNameValue, nil
+		return otherNameValue, "otherName", nil
 	}
 	err = errors.New("no certificate found in the SAN attributes, please check if the certificate is an UZI Server Certificate")
-	return "", err
+	return "", "", err
 }
 
 // FindPermanentIdentifierValue extracts the PermanentIdentifier from the provided x509.Certificate if it exists.
@@ -162,7 +162,7 @@ func FindSigningCertificate(chain *[]x509.Certificate) (*x509.Certificate, strin
 	var err error
 	var ura string
 	for _, cert := range *chain {
-		ura, err = FindUra(&cert)
+		ura, _, err = FindUra(&cert)
 		if err != nil {
 			continue
 		}

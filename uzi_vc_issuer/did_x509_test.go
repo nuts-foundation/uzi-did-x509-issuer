@@ -62,7 +62,7 @@ func TestDefaultDidCreator_CreateDid(t *testing.T) {
 			name:   "Happy path",
 			fields: fields{},
 			args:   args{chain: chain},
-			want:   strings.Join([]string{"did", "x509", "0", alg, rootHashString, "", "san", "permanentIdentifier", "23123123"}, ":"),
+			want:   strings.Join([]string{"did", "x509", "0", alg, rootHashString, "", "san", "otherName.permanentIdentifier", "23123123"}, ":"),
 			errMsg: "",
 		},
 	}

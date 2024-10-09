@@ -59,19 +59,19 @@ func (d *DefaultDidCreator) CreateDid(chain *[]x509.Certificate) (string, error)
 	if err != nil || certificate == nil {
 		return "", err
 	}
-	ura, err := FindUra(certificate)
+	ura, sanType, err := FindUra(certificate)
 	if err != nil {
 		return "", err
 	}
-	policy := CreatePolicy(ura)
+	policy := CreatePolicy(ura, sanType)
 	did, err := FormatDid(chain, policy)
 	return did, err
 }
 
 // CreatePolicy constructs a policy string using the provided URA, fixed string "san", and "permanentIdentifier".
 // It joins these components with colons and returns the resulting policy string.
-func CreatePolicy(ura string) string {
-	fragments := []string{"san", "permanentIdentifier", ura}
+func CreatePolicy(ura string, sanType string) string {
+	fragments := []string{"san", sanType, ura}
 	policy := strings.Join(fragments, ":")
 	return policy
 }
