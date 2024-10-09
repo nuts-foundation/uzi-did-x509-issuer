@@ -1,15 +1,27 @@
-# HeadEase Nuts PKI Overheid Issuer
+# Nuts UZI Server Certificaat Issuer 
+
+
+< 8 nov 2023
 
 ## Description
 
-The HeadEase Nuts PKI Overheid Issuer is a Go-based tool designed for managing Public Key Infrastructure (PKI) operations within the HeadEase project. It focuses on the issuance and management of certificates in a regulated healthcare environment, ensuring secure communication and data integrity.
+The UZI Server Certificaat Issuer is a Go-based tool designed for issuing Verifiable Credentials signed by a UZI Server Certificaat. The issuer creates a did:x509 based on the PKI certificate chain.
 
 ## Features
 
-- Issuance of new certificates
-- Validation of certificate chains
-- Reading and handling PEM files
-- Integration with the Nuts ecosystem for healthcare applications
+The UZI Server Certificaat Issuer generated a Verifiable Credential of type UziServerCertificateCredential with the following features:
+
+- The DID method is a customized did:x509 DID pointing to the x5c header.
+- The x5c filled with the certificate chain. The chain is built from:
+  - The provided UZI server (Test) Certificate
+  - All the required certificates from the ./chain directory. 
+- Signed by the private key of the UZI Server Certificaat.
+- The VC issued to the provided DID and name.
+
+## Note on security, trust, and secrecy 
+The VC that is signed by this application are cryptographic proofs, signed by the private key used in the UZI Server Certificate process. Note that:
+* This private key is supposed to be kept very secret.
+* The Subject DID of the signed credential is mandated with cryptographic proof to act on behalf of the owner of the private key on the NUTS network.  
 
 ## Prerequisites
 
@@ -29,39 +41,49 @@ Follow these steps to set up the project:
    ```
 2. **Change to the project directory:**
    ```sh
-   cd headease-nuts-pki-overheid-issuer
+   cd uzi-servercertificaat-issuer
    ```
 3. **Download dependencies:**
    ```sh
-   go mod tidy
+   go mod download && go mod verify
+   ```
+4. **Build the project:**
+   ```sh
+   go build -ldflags="-w -s " -o ./issuer
    ```
 
 ## Usage
 
-To use the HeadEase Nuts PKI Overheid Issuer:
-
-1. **Build the project:**
+1. **Run the application:**
    ```sh
-   go build -o headease-nuts-pki-overheid-issuer main.go
-   ```
-   
-2. **Run the application:**
-   ```sh
-   ./headease-nuts-pki-overheid-issuer
+   ./issuer
    ```
 
-3. **Generating a new certificate:**
+2. **Getting command line help:**
    - Use the CLI options provided by the application to generate new certificates. Refer to the help command for more details:
    ```sh
-   ./headease-nuts-pki-overheid-issuer --help
+   ./issuer --help
    ```
+3. **Example call for generating a VC:**
+   - The following parameters are required:
+     - **certificate_file**, the PEM file of the URA server certificate
+     - **signing_key** ,the unencrypted PEM file of the private key used for signing.
+     - **subject_did** and **subject_name**, the vc.subject.id and  vc.subject.name of the generated verifiable credential.
 
-## Project Structure
+## Project UZI CA and Intermediate CA files
 
-- `main.go`: The main entry point of the application.
-- `ura_vc/pem_reader.go`: Handles reading PEM files.
-- `ura_vc/x509_chain.go`: Manages X.509 certificate chains.
-- `cert/*`: Directory containing certificate-related files.
+The [./ca_certs](./ca_certs) directory contains the current set of intermediate and root CA (test) certificates issued by the Dutch government:
+- [https://www.zorgcsp.nl/ca-certificaten](https://www.zorgcsp.nl/ca-certificaten)
+- [https://acceptatie.zorgcsp.nl/ca-certificaten](https://acceptatie.zorgcsp.nl/ca-certificaten)
+
+## Converting to PEM files:
+The following command converts .cer files to PEM:
+```shell
+ openssl x509 -inform der -in certificate.cer -out certificate.pem
+```
+## Validating a UziServerCertificateCredential
+
+The logic on Validating a UziServerCertificateCredential is described in the [VC_VALIDATION.md](VC_VALIDATION.md) file.
 
 ## Contributing
 
