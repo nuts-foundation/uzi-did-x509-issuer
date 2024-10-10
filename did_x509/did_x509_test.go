@@ -3,7 +3,7 @@ package did_x509
 import (
 	"crypto/x509"
 	"encoding/base64"
-	x510 "headease-nuts-pki-overheid-issuer/x509_cert"
+	"headease-nuts-pki-overheid-issuer/x509_cert"
 	"strings"
 	"testing"
 )
@@ -16,13 +16,13 @@ func TestDefaultDidCreator_CreateDid(t *testing.T) {
 	type args struct {
 		chain *[]x509.Certificate
 	}
-	chain, _, rootCert, _, _, err := BuildCertChain("123123123")
+	chain, _, rootCert, _, _, err := x509_cert.BuildCertChain("A BIG STRING")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	alg := "sha512"
-	hash, err := x510.Hash(rootCert.Raw, alg)
+	hash, err := x509_cert.Hash(rootCert.Raw, alg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,7 +54,7 @@ func TestDefaultDidCreator_CreateDid(t *testing.T) {
 			name:   "Happy path",
 			fields: fields{},
 			args:   args{chain: chain},
-			want:   strings.Join([]string{"did", "x509", "0", alg, rootHashString, "", "san", "otherName.permanentIdentifier", "23123123"}, ":"),
+			want:   strings.Join([]string{"did", "x509", "0", alg, rootHashString, "", "san", "otherName", "A BIG STRING"}, ":"),
 			errMsg: "",
 		},
 	}

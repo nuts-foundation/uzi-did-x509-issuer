@@ -3,7 +3,6 @@ package pem
 import (
 	"encoding/base64"
 	"github.com/stretchr/testify/assert"
-	"headease-nuts-pki-overheid-issuer/did_x509"
 	"headease-nuts-pki-overheid-issuer/x509_cert"
 	"log"
 	"os"
@@ -65,7 +64,7 @@ func TestParseFileOrPath(t *testing.T) {
 				log.Fatal(err)
 			}
 		}(file.Name())
-		certs, chainPem, _, _, _, err := did_x509.BuildCertChain("2312312")
+		certs, chainPem, _, _, _, err := x509_cert.BuildCertChain("A BIG STRING")
 		assert.NoError(t, err)
 		for i := 0; i < chainPem.Len(); i++ {
 			certBlock, ok := chainPem.Get(i)
@@ -93,7 +92,7 @@ func TestParseFileOrPath(t *testing.T) {
 	})
 	t.Run("Happy flow directory", func(t *testing.T) {
 		pemReader := NewPemReader()
-		certs, chainPem, _, _, _, err := did_x509.BuildCertChain("2312312")
+		certs, chainPem, _, _, _, err := x509_cert.BuildCertChain("A BIG STRING")
 		assert.NoError(t, err)
 		tempDir, _ := os.MkdirTemp("", "example")
 		defer func(path string) {

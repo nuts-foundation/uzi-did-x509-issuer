@@ -13,16 +13,10 @@ import (
 
 type OtherName struct {
 	TypeID asn1.ObjectIdentifier
-	//Value  PermanentIdentifier `asn1:"tag:0,explicit"`
-	Value asn1.RawValue `asn1:"tag:0,explicit"`
+	Value  asn1.RawValue `asn1:"tag:0,explicit"`
 }
 
 type SanType pkix.AttributeTypeAndValue
-
-type PermanentIdentifier struct {
-	IdentifierValue string                `asn1:"utf8,optional"`
-	Assigner        asn1.ObjectIdentifier `asn1:"tag:6,optional"`
-}
 
 type SanTypeName string
 
@@ -132,13 +126,13 @@ func FindSigningCertificate(chain *[]x509.Certificate) (*x509.Certificate, strin
 	}
 	var err error
 	var ura string
-	for _, cert := range *chain {
-		ura, _, err = FindUra(&cert)
+	for _, c := range *chain {
+		ura, _, err = FindUra(&c)
 		if err != nil {
 			continue
 		}
 		if ura != "" {
-			return &cert, ura, nil
+			return &c, ura, nil
 		}
 	}
 	return nil, "", err

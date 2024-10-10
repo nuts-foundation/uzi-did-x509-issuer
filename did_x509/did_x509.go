@@ -74,8 +74,8 @@ func (d *DefaultDidProcessor) CreateDid(chain *[]x509.Certificate) (string, erro
 		return "", err
 	}
 	policy := CreatePolicy(ura, sanType)
-	did, err := FormatDid(chain, policy)
-	return did, err
+	formattedDid, err := FormatDid(chain, policy)
+	return formattedDid, err
 }
 func (d *DefaultDidProcessor) ParseDid(didString string) (*X509Did, error) {
 	x509Did := X509Did{}

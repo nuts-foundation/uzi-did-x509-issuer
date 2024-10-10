@@ -128,14 +128,6 @@ func validate(signingCert *x509.Certificate, roots *x509.CertPool, intermediates
 	return nil
 }
 
-func validateProduction(signingCert *x509.Certificate, allowTest bool) error {
-	root, intermediate, err := ca_certs.GetCertPools(allowTest)
-	if err != nil {
-		return err
-	}
-	return validate(signingCert, root, intermediate)
-}
-
 func findSigningCertificate(certificates *[]x509.Certificate, thumbprint string) (*x509.Certificate, error) {
 	for _, c := range *certificates {
 		hashSha1 := sha1.Sum(c.Raw)

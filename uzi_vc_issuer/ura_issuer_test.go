@@ -6,7 +6,7 @@ import (
 	"crypto/x509"
 	"go.uber.org/mock/gomock"
 	"headease-nuts-pki-overheid-issuer/did_x509"
-	x510 "headease-nuts-pki-overheid-issuer/x509_cert"
+	"headease-nuts-pki-overheid-issuer/x509_cert"
 	"math/big"
 	"testing"
 	"time"
@@ -41,7 +41,7 @@ func TestBuildUraVerifiableCredential(t *testing.T) {
 		},
 	}
 	creator := did_x509.NewMockDidCreator(ctrl)
-	parser := x510.NewMockChainParser(ctrl)
+	parser := x509_cert.NewMockChainParser(ctrl)
 	builder := NewUraVcBuilder(creator, parser)
 
 	for _, tt := range tests {

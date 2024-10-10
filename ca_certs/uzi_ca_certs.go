@@ -120,7 +120,12 @@ func readCertificateFromUrl(url string) (*x509.Certificate, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer response.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			// ignore
+		}
+	}(response.Body)
 
 	if response.StatusCode != 200 {
 		return nil, fmt.Errorf("unexpected status code (%v) from url %s: ", response.StatusCode, url)

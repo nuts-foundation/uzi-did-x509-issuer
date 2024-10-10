@@ -201,6 +201,8 @@ func validateChain(certificates *[]x509.Certificate) error {
 	return errors.New("failed to find a path to the root certificate in the chain, are you using a (Test) URA server certificate (Hint: the --test mode is required for Test URA server certificates)")
 }
 
+// BuildCertificateChain constructs a certificate chain from a given list of certificates and a starting signing certificate.
+// It recursively finds parent certificates for non-root CAs and appends them to the chain.
 func BuildCertificateChain(certs *[]x509.Certificate, signingCert *x509.Certificate) *[]x509.Certificate {
 	var chain []x509.Certificate
 	if signingCert == nil {
@@ -243,9 +245,9 @@ func convertHeaders(headers map[string]interface{}) (jws.Headers, error) {
 }
 
 // uraCredential generates a VerifiableCredential for a given URA and UZI number, including the subject's DID and name.
-// It sets a 12-year expiration period from the current issuance date.
+// It sets a 1-year expiration period from the current issuance date.
 func uraCredential(did string, ura string, uzi string, subjectDID string, subjectName string) (vc.VerifiableCredential, error) {
-	exp := time.Now().Add(time.Hour * 24 * 365 * 12)
+	exp := time.Now().Add(time.Hour * 24 * 365)
 	iat := time.Now()
 	return vc.VerifiableCredential{
 		Issuer:         ssi.MustParseURI(did),
@@ -264,36 +266,3 @@ func uraCredential(did string, ura string, uzi string, subjectDID string, subjec
 		},
 	}, nil
 }
-
-//func buildX509Credential(chainPems *cert.Chain, signingCert *x509.Certificate, rootCert *x509.Certificate, signingKey *rsa.PrivateKey, ura string) (*vc.VerifiableCredential, error) {
-//	headers := map[string]interface{}{}
-//	headers["x5c"] = chainPems
-//	hashSha1 := sha1.Sum(signingCert.Raw)
-//	headers["x5t"] = base64.RawURLEncoding.EncodeToString(hashSha1[:])
-//
-//	hashSha256 := sha256.Sum256(rootCert.Raw)
-//	rootCertHashBytes := hashSha256[:]
-//	rootCertHashStr := base64.RawURLEncoding.EncodeToString(rootCertHashBytes)
-//	did := "did:x509:0:sha256:" + rootCertHashStr + "::subject:serialNumber:" + ura
-//	headers["kid"] = did
-//
-//	claims := map[string]interface{}{}
-//	claims["iss"] = did
-//	claims["sub"] = did
-//	credential, err := uraCredential(did, ura)
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	claims["vc"] = *credential
-//
-//	token, err := nutsCrypto.SignJWT(audit.TestContext(), signingKey, jwa.PS512, claims, headers)
-//	if err != nil {
-//		return nil, err
-//	}
-//	cred, err := vc.ParseVerifiableCredential(token)
-//	if err != nil {
-//		return nil, err
-//	}
-//	return cred, nil
-//}
