@@ -7,7 +7,7 @@
 //
 
 // Package uzi_vc_issuer is a generated GoMock package.
-package uzi_vc_issuer
+package pem
 
 import (
 	reflect "reflect"

@@ -1,4 +1,4 @@
-package uzi_vc_issuer
+package x509_cert
 
 import (
 	"crypto/rsa"
@@ -6,8 +6,17 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"crypto/x509"
+	"encoding/asn1"
 	"fmt"
 	"golang.org/x/crypto/sha3"
+)
+
+// SubjectAlternativeNameType represents the ASN.1 Object Identifier for Subject Alternative Name.
+var (
+	SubjectAlternativeNameType = asn1.ObjectIdentifier{2, 5, 29, 17}
+	PermanentIdentifierType    = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 8, 3}
+	OtherNameType              = asn1.ObjectIdentifier{2, 5, 5, 5}
+	UraAssigner                = asn1.ObjectIdentifier{2, 16, 528, 1, 1007, 3, 3}
 )
 
 // Hash computes the hash of the input data using the specified algorithm.
@@ -35,6 +44,8 @@ type ChainParser interface {
 
 	// ParseCertificates parses a chain of DER-encoded certificates into an array of x509.Certificate objects.
 	ParseCertificates(derChain *[][]byte) (*[]x509.Certificate, error)
+
+	// ParsePrivateKey parses a DER-encoded byte slice into an rsa.PrivateKey object, returning an error if parsing fails.
 	ParsePrivateKey(der *[]byte) (*rsa.PrivateKey, error)
 }
 

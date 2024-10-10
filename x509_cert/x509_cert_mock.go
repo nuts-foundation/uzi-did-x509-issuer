@@ -7,7 +7,7 @@
 //
 
 // Package uzi_vc_issuer is a generated GoMock package.
-package uzi_vc_issuer
+package x509_cert
 
 import (
 	rsa "crypto/rsa"

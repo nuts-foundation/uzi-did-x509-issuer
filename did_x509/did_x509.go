@@ -1,12 +1,23 @@
-package uzi_vc_issuer
+package did_x509
 
 import (
 	"crypto/x509"
-	"encoding/asn1"
 	"encoding/base64"
+	"errors"
 	"fmt"
+	"github.com/nuts-foundation/go-did/did"
+	"headease-nuts-pki-overheid-issuer/x509_cert"
+	"regexp"
 	"strings"
 )
+
+type X509Did struct {
+	Version                string
+	RootCertificateHash    string
+	RootCertificateHashAlg string
+	Ura                    string
+	SanType                x509_cert.SanTypeName
+}
 
 // DidCreator is an interface for creating a DID (Decentralized Identifier) given a chain of x509 certificates.
 // The CreateDid method takes a slice of x509.Certificate and returns a DID as a string and an error if any.
@@ -14,21 +25,20 @@ type DidCreator interface {
 	CreateDid(chain *[]x509.Certificate) (string, error)
 }
 
-// SubjectAlternativeNameType represents the ASN.1 Object Identifier for Subject Alternative Name.
-var (
-	SubjectAlternativeNameType = asn1.ObjectIdentifier{2, 5, 29, 17}
-	PermanentIdentifierType    = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 8, 3}
-	OtherNameType              = asn1.ObjectIdentifier{2, 5, 5, 5}
-	UraAssigner                = asn1.ObjectIdentifier{2, 16, 528, 1, 1007, 3, 3}
-)
-
-// DefaultDidCreator is responsible for creating Decentralized Identifiers (DIDs) based on certificate chain information.
-type DefaultDidCreator struct {
+type DidParser interface {
+	ParseDid(did string) (*X509Did, error)
 }
 
-// NewDidCreator initializes and returns a new instance of DefaultDidCreator.
-func NewDidCreator() *DefaultDidCreator {
-	return &DefaultDidCreator{}
+// DefaultDidProcessor is responsible for creating Decentralized Identifiers (DIDs) based on certificate chain information.
+type DefaultDidProcessor struct {
+}
+
+// NewDidCreator initializes and returns a new instance of DefaultDidProcessor.
+func NewDidCreator() *DefaultDidProcessor {
+	return &DefaultDidProcessor{}
+}
+func NewDidParser() *DefaultDidProcessor {
+	return &DefaultDidProcessor{}
 }
 
 // FormatDid constructs a decentralized identifier (DID) from a certificate chain and an optional policy.
@@ -39,7 +49,7 @@ func FormatDid(chain *[]x509.Certificate, policy string) (string, error) {
 		return "", err
 	}
 	alg := "sha512"
-	rootHash, err := Hash(root.Raw, alg)
+	rootHash, err := x509_cert.Hash(root.Raw, alg)
 	if err != nil {
 		return "", err
 	}
@@ -54,12 +64,12 @@ func FormatDid(chain *[]x509.Certificate, policy string) (string, error) {
 // CreateDid generates a Decentralized Identifier (DID) from a given certificate chain.
 // It extracts the Unique Registration Address (URA) from the chain, creates a policy with it, and formats the DID.
 // Returns the generated DID or an error if any step fails.
-func (d *DefaultDidCreator) CreateDid(chain *[]x509.Certificate) (string, error) {
-	certificate, _, err := FindSigningCertificate(chain)
+func (d *DefaultDidProcessor) CreateDid(chain *[]x509.Certificate) (string, error) {
+	certificate, _, err := x509_cert.FindSigningCertificate(chain)
 	if err != nil || certificate == nil {
 		return "", err
 	}
-	ura, sanType, err := FindUra(certificate)
+	ura, sanType, err := x509_cert.FindUra(certificate)
 	if err != nil {
 		return "", err
 	}
@@ -67,11 +77,29 @@ func (d *DefaultDidCreator) CreateDid(chain *[]x509.Certificate) (string, error)
 	did, err := FormatDid(chain, policy)
 	return did, err
 }
+func (d *DefaultDidProcessor) ParseDid(didString string) (*X509Did, error) {
+	x509Did := X509Did{}
+	didObj := did.MustParseDID(didString)
+	if didObj.Method != "x509" {
+		return nil, errors.New("invalid didString method")
+	}
+	regex := regexp.MustCompile(`0:(\w+):([^:]+)::san:([^:]+):(.+)`)
+	submatch := regex.FindStringSubmatch(didObj.ID)
+	if len(submatch) != 5 {
+		return nil, errors.New("invalid didString format, expected didString:x509:0:alg:hash::san:type:ura")
+	}
+	x509Did.Version = "0"
+	x509Did.RootCertificateHashAlg = submatch[1]
+	x509Did.RootCertificateHash = submatch[2]
+	x509Did.SanType = x509_cert.SanTypeName(submatch[3])
+	x509Did.Ura = submatch[4]
+	return &x509Did, nil
+}
 
 // CreatePolicy constructs a policy string using the provided URA, fixed string "san", and "permanentIdentifier".
 // It joins these components with colons and returns the resulting policy string.
-func CreatePolicy(ura string, sanType string) string {
-	fragments := []string{"san", sanType, ura}
+func CreatePolicy(ura string, sanType x509_cert.SanTypeName) string {
+	fragments := []string{"san", string(sanType), ura}
 	policy := strings.Join(fragments, ":")
 	return policy
 }

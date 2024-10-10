@@ -7,7 +7,7 @@
 //
 
 // Package uzi_vc_issuer is a generated GoMock package.
-package uzi_vc_issuer
+package did_x509
 
 import (
 	x509 "crypto/x509"

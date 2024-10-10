@@ -1,7 +1,6 @@
 package uzi_vc_issuer
 
 import (
-	"bytes"
 	"context"
 	"crypto/rsa"
 	"crypto/sha1"
@@ -17,7 +16,11 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jws"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	ssi "github.com/nuts-foundation/go-did"
-	"strings"
+	"headease-nuts-pki-overheid-issuer/ca_certs"
+	"headease-nuts-pki-overheid-issuer/did_x509"
+	pem2 "headease-nuts-pki-overheid-issuer/pem"
+	"headease-nuts-pki-overheid-issuer/uzi_vc_validator"
+	"headease-nuts-pki-overheid-issuer/x509_cert"
 	"time"
 )
 import "github.com/nuts-foundation/go-did/vc"
@@ -31,23 +34,29 @@ type UraIssuer interface {
 // DefaultUraIssuer is responsible for building URA (UZI-register abonneenummer) Verifiable Credentials.
 // It utilizes a DidCreator to generate Decentralized Identifiers (DIDs) given a chain of x509 certificates.
 type DefaultUraIssuer struct {
-	didCreator  DidCreator
-	chainParser ChainParser
+	didCreator  did_x509.DidCreator
+	chainParser x509_cert.ChainParser
 }
 
 // NewUraVcBuilder initializes and returns a new instance of DefaultUraIssuer with the provided DidCreator.
-func NewUraVcBuilder(didCreator DidCreator, chainParser ChainParser) *DefaultUraIssuer {
+func NewUraVcBuilder(didCreator did_x509.DidCreator, chainParser x509_cert.ChainParser) *DefaultUraIssuer {
 	return &DefaultUraIssuer{didCreator, chainParser}
 }
 
 // Issue generates a URA Verifiable Credential using provided certificate, signing key, subject DID, and subject name.
-func (u DefaultUraIssuer) Issue(certificateFile string, signingKeyFile string, subjectDID string, subjectName string) (string, error) {
-	reader := NewPemReader()
+func (u DefaultUraIssuer) Issue(certificateFile string, signingKeyFile string, subjectDID string, subjectName string, test bool) (string, error) {
+	reader := pem2.NewPemReader()
 	certificate, err := reader.ParseFileOrPath(certificateFile, "CERTIFICATE")
 	if err != nil {
 		return "", err
 	}
-	chain, err := reader.ParseFileOrPath("ca_certs", "CERTIFICATE")
+	_certificates, err := u.chainParser.ParseCertificates(certificate)
+	if len(*_certificates) != 1 {
+		err = fmt.Errorf("did not find exactly one certificate in file %s", certificateFile)
+		return "", err
+	}
+
+	chain, err := ca_certs.GetDERs(test)
 	if err != nil {
 		return "", err
 	}
@@ -88,12 +97,20 @@ func (u DefaultUraIssuer) Issue(certificateFile string, signingKeyFile string, s
 	if err != nil {
 		return "", err
 	}
-	return string(marshal), nil
+	validator := uzi_vc_validator.NewUraValidator(did_x509.NewDidParser(), test)
+	jwtString := string(marshal)
+	jwtString = jwtString[1:]                // Chop start
+	jwtString = jwtString[:len(jwtString)-1] // Chop end
+	err = validator.Validate(jwtString)
+	if err != nil {
+		return "", err
+	}
+	return jwtString, nil
 }
 
 // BuildUraVerifiableCredential constructs a verifiable credential with specified certificates, signing key, subject DID, and subject name.
 func (v DefaultUraIssuer) BuildUraVerifiableCredential(certificates *[]x509.Certificate, signingKey *rsa.PrivateKey, subjectDID string, subjectName string) (*vc.VerifiableCredential, error) {
-	signingCert, ura, err := FindSigningCertificate(certificates)
+	signingCert, ura, err := x509_cert.FindSigningCertificate(certificates)
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +178,7 @@ func marshalChain(certificates *[]x509.Certificate) (*cert.Chain, error) {
 			return nil, err
 		}
 	}
-	headers, err := fixChainHeaders(chainPems)
+	headers, err := x509_cert.FixChainHeaders(chainPems)
 	return headers, err
 }
 
@@ -176,12 +193,12 @@ func validateChain(certificates *[]x509.Certificate) error {
 				return err
 			}
 		}
-		if isRootCa(&certificate) {
+		if x509_cert.IsRootCa(&certificate) {
 			return nil
 		}
 		prev = &certificate
 	}
-	return errors.New("failed to find a path to the root certificate in the chain, it looks like the provided certificate is a signed UZI-servercertificaat")
+	return errors.New("failed to find a path to the root certificate in the chain, are you using a (Test) URA server certificate (Hint: the --test mode is required for Test URA server certificates)")
 }
 
 func BuildCertificateChain(certs *[]x509.Certificate, signingCert *x509.Certificate) *[]x509.Certificate {
@@ -189,7 +206,7 @@ func BuildCertificateChain(certs *[]x509.Certificate, signingCert *x509.Certific
 	if signingCert == nil {
 		return &chain
 	}
-	if !isRootCa(signingCert) {
+	if !x509_cert.IsRootCa(signingCert) {
 		for _, parent := range *certs {
 			err := signingCert.CheckSignatureFrom(&parent)
 			if err == nil {
@@ -200,10 +217,6 @@ func BuildCertificateChain(certs *[]x509.Certificate, signingCert *x509.Certific
 	}
 	chain = append(chain, *signingCert)
 	return &chain
-}
-
-func isRootCa(signingCert *x509.Certificate) bool {
-	return signingCert.IsCA && bytes.Equal(signingCert.RawIssuer, signingCert.RawSubject)
 }
 
 // convertClaims converts a map of claims to a JWT token.
@@ -250,21 +263,6 @@ func uraCredential(did string, ura string, uzi string, subjectDID string, subjec
 			},
 		},
 	}, nil
-}
-
-// fixChainHeaders replaces newline characters in the certificate chain headers with escaped newline sequences.
-// It processes each certificate in the provided chain and returns a new chain with the modified headers or an error if any occurs.
-func fixChainHeaders(chain *cert.Chain) (*cert.Chain, error) {
-	rv := &cert.Chain{}
-	for i := 0; i < chain.Len(); i++ {
-		value, _ := chain.Get(i)
-		der := strings.ReplaceAll(string(value), "\n", "\\n")
-		err := rv.AddString(der)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return rv, nil
 }
 
 //func buildX509Credential(chainPems *cert.Chain, signingCert *x509.Certificate, rootCert *x509.Certificate, signingKey *rsa.PrivateKey, ura string) (*vc.VerifiableCredential, error) {

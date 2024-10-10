@@ -1,12 +1,14 @@
-package uzi_vc_issuer
+package x509_cert
 
 import (
+	"bytes"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"errors"
 	"fmt"
-	"regexp"
+	"github.com/lestrrat-go/jwx/v2/cert"
+	"strings"
 )
 
 type OtherName struct {
@@ -22,59 +24,24 @@ type PermanentIdentifier struct {
 	Assigner        asn1.ObjectIdentifier `asn1:"tag:6,optional"`
 }
 
-func FindUra(certificate *x509.Certificate) (string, string, error) {
-	identifier, err := FindPermanentIdentifierValue(certificate)
-	if err != nil {
-		return "", "", err
-	}
-	if identifier != nil && identifier.IdentifierValue != "" {
-		return identifier.IdentifierValue, "otherName.permanentIdentifier", nil
-	}
+type SanTypeName string
+
+const (
+	SAN_TYPE_OTHER_NAME SanTypeName = "otherName"
+)
+
+func FindUra(certificate *x509.Certificate) (string, SanTypeName, error) {
 	otherNameValue, err := FindOtherNameValue(certificate)
 	if err != nil {
 		return "", "", err
 	}
 	if otherNameValue != "" {
-		return otherNameValue, "otherName", nil
+		return otherNameValue, SAN_TYPE_OTHER_NAME, nil
 	}
 	err = errors.New("no certificate found in the SAN attributes, please check if the certificate is an UZI Server Certificate")
 	return "", "", err
 }
 
-// FindPermanentIdentifierValue extracts the PermanentIdentifier from the provided x509.Certificate if it exists.
-// The function searches through the extensions of the certificate, specifically the SubjectAlternativeName (SAN).
-// If a SAN of type PermanentIdentifier is found, it extracts and returns it; otherwise, it returns nil.
-func FindPermanentIdentifierValue(cert *x509.Certificate) (*PermanentIdentifier, error) {
-	var identifier PermanentIdentifier
-	for _, extension := range cert.Extensions {
-		if extension.Id.Equal(SubjectAlternativeNameType) {
-			err := forEachSAN(extension.Value, func(tag int, data []byte) error {
-				if tag != 0 {
-					return nil
-				}
-				var other OtherName
-				_, err := asn1.UnmarshalWithParams(data, &other, "tag:0")
-				if err != nil {
-					return fmt.Errorf("could not parse requested other SAN: %v", err)
-				}
-				if other.TypeID.Equal(PermanentIdentifierType) {
-					_, err = asn1.Unmarshal(other.Value.Bytes, &identifier)
-					if err != nil {
-						return err
-					}
-				}
-				return nil
-			})
-			if err != nil {
-				return nil, err
-			}
-			if identifier.IdentifierValue != "" {
-				return &identifier, nil
-			}
-		}
-	}
-	return nil, nil
-}
 func FindOtherNameValue(cert *x509.Certificate) (string, error) {
 	value := ""
 	for _, extension := range cert.Extensions {
@@ -99,11 +66,7 @@ func FindOtherNameValue(cert *x509.Certificate) (string, error) {
 			if err != nil {
 				return "", err
 			}
-			regex := regexp.MustCompile(`2\.16\.528\.1\.1007.\d+\.\d+-\d+-\d+-S-(\d+)-00\.000-\d+`)
-			submatch := regex.FindStringSubmatch(value)
-			if len(submatch) == 2 {
-				return submatch[1], nil
-			}
+			return value, err
 		}
 	}
 	return "", nil
@@ -153,6 +116,14 @@ func processSANSequence(rest []byte, callback func(tag int, data []byte) error) 
 	return nil
 }
 
+func IsRootCa(signingCert *x509.Certificate) bool {
+	return signingCert.IsCA && bytes.Equal(signingCert.RawIssuer, signingCert.RawSubject)
+}
+
+func IsIntermediateCa(signingCert *x509.Certificate) bool {
+	return signingCert.IsCA && !bytes.Equal(signingCert.RawIssuer, signingCert.RawSubject)
+}
+
 // FindSigningCertificate searches the provided certificate chain for a certificate with a specific SAN and Permanent Identifier.
 // It returns the found certificate, its IdentifierValue, and an error if no matching certificate is found.
 func FindSigningCertificate(chain *[]x509.Certificate) (*x509.Certificate, string, error) {
@@ -171,4 +142,19 @@ func FindSigningCertificate(chain *[]x509.Certificate) (*x509.Certificate, strin
 		}
 	}
 	return nil, "", err
+}
+
+// fixChainHeaders replaces newline characters in the certificate chain headers with escaped newline sequences.
+// It processes each certificate in the provided chain and returns a new chain with the modified headers or an error if any occurs.
+func FixChainHeaders(chain *cert.Chain) (*cert.Chain, error) {
+	rv := &cert.Chain{}
+	for i := 0; i < chain.Len(); i++ {
+		value, _ := chain.Get(i)
+		der := strings.ReplaceAll(string(value), "\n", "\\n")
+		err := rv.AddString(der)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return rv, nil
 }

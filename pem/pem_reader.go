@@ -1,4 +1,4 @@
-package uzi_vc_issuer
+package pem
 
 import (
 	"encoding/pem"
@@ -57,14 +57,14 @@ func readFile(filename string, pemType string) (*[][]byte, error) {
 		return nil, err
 	}
 	if looksLineCert(content, pemType) {
-		foundBlocks := parsePemBlocks(content, pemType)
+		foundBlocks := ParsePemBlocks(content, pemType)
 		files = append(files, *foundBlocks...)
 	}
 	return &files, nil
 }
 
-// parsePemBlocks extracts specified PEM blocks from the provided certificate bytes and returns them as a pointer to a slice of byte slices.
-func parsePemBlocks(cert []byte, pemType string) *[][]byte {
+// ParsePemBlocks extracts specified PEM blocks from the provided certificate bytes and returns them as a pointer to a slice of byte slices.
+func ParsePemBlocks(cert []byte, pemType string) *[][]byte {
 	blocks := make([][]byte, 0)
 	for {
 		pemBlock, tail := pem.Decode(cert)

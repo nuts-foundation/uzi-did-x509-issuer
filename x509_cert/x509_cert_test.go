@@ -1,87 +1,167 @@
-package uzi_vc_issuer
+package x509_cert
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha1"
+	"crypto/sha256"
+	"crypto/sha512"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
-	"encoding/base64"
 	"encoding/pem"
 	"fmt"
 	"github.com/lestrrat-go/jwx/v2/cert"
+	"github.com/stretchr/testify/assert"
+	"golang.org/x/crypto/sha3"
 	"math/big"
 	"strings"
 	"testing"
 	"time"
 )
 
-// TestDefaultDidCreator_CreateDid tests the CreateDid function of DefaultDidCreator by providing different certificate chains.
-// It checks for correct DID generation and appropriate error messages.
-func TestDefaultDidCreator_CreateDid(t *testing.T) {
-	type fields struct {
-	}
-	type args struct {
-		chain *[]x509.Certificate
-	}
-	chain, _, rootCert, _, _, err := BuildCertChain("123123123")
-	if err != nil {
-		t.Fatal(err)
+func TestHash(t *testing.T) {
+	sha1sum := sha1.Sum([]byte("test"))
+	sha256sum := sha256.Sum256([]byte("test"))
+	sha384sum := sha3.Sum384([]byte("test"))
+	sha512sum := sha512.Sum512([]byte("test"))
+	testCases := []struct {
+		name  string
+		data  []byte
+		alg   string
+		hash  []byte
+		error error
+	}{
+		{
+			name: "SHA1",
+			data: []byte("test"),
+			alg:  "sha1",
+			hash: sha1sum[:],
+		},
+		{
+			name: "SHA256",
+			data: []byte("test"),
+			alg:  "sha256",
+			hash: sha256sum[:],
+		},
+		{
+			name: "SHA384",
+			data: []byte("test"),
+			alg:  "sha384",
+			hash: sha384sum[:],
+		},
+		{
+			name: "SHA512",
+			data: []byte("test"),
+			alg:  "sha512",
+			hash: sha512sum[:],
+		},
+		{
+			name:  "Unsupported",
+			data:  []byte("test"),
+			alg:   "unsupported",
+			hash:  nil,
+			error: fmt.Errorf("unsupported hash algorithm: %s", "unsupported"),
+		},
 	}
 
-	alg := "sha512"
-	hash, err := Hash(rootCert.Raw, alg)
-	if err != nil {
-		t.Fatal(err)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			hash, err := Hash(tc.data, tc.alg)
+			if tc.error != nil {
+				if err.Error() != tc.error.Error() {
+					t.Errorf("unexpected error %v, want %v", err, tc.error)
+				}
+			}
+			if !bytes.Equal(hash, tc.hash) {
+				t.Errorf("unexpected hash %x, want %x", hash, tc.hash)
+			}
+		})
 	}
-	rootHashString := base64.RawURLEncoding.EncodeToString(hash)
-	tests := []struct {
+}
+func TestParseChain(t *testing.T) {
+	parser := NewDefaultChainParser()
+
+	_, chainPem, _, _, _, err := BuildCertChain("9907878")
+	assert.NoError(t, err)
+	derChains := make([][]byte, chainPem.Len())
+	for i := 0; i < chainPem.Len(); i++ {
+		certBlock, ok := chainPem.Get(i)
+		certBlock = []byte(strings.ReplaceAll(string(certBlock), "\\n", "\n"))
+		block, _ := pem.Decode(certBlock)
+		assert.NotNil(t, block)
+		if ok {
+			derChains[i] = block.Bytes
+		} else {
+			t.Fail()
+		}
+	}
+
+	testCases := []struct {
+		name     string
+		derChain *[][]byte
+		errMsg   string
+	}{
+		{
+			name:     "Valid Certificates",
+			derChain: &derChains,
+		},
+		{
+			name:     "Nil ChainPem",
+			derChain: nil,
+			errMsg:   "derChain is nil",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := parser.ParseCertificates(tc.derChain)
+			if err != nil {
+				if err.Error() != tc.errMsg {
+					t.Errorf("got error %v, want %v", err, tc.errMsg)
+				}
+			}
+		})
+	}
+}
+
+func TestParsePrivateKey(t *testing.T) {
+	parser := NewDefaultChainParser()
+	_, _, _, privateKey, _, err := BuildCertChain("9907878")
+	assert.NoError(t, err)
+	privateKeyBytes, err := x509.MarshalPKCS8PrivateKey(privateKey)
+	assert.NoError(t, err)
+
+	pkcs1PrivateKey := x509.MarshalPKCS1PrivateKey(privateKey)
+	testCases := []struct {
 		name   string
-		fields fields
-		args   args
-		want   string
+		der    *[]byte
 		errMsg string
 	}{
 		{
-			name:   "Test case 1",
-			fields: fields{},
-			args:   args{chain: &[]x509.Certificate{}},
-			want:   "",
-			errMsg: "no certificates provided",
+			name: "ValidPrivateKey",
+			der:  &privateKeyBytes,
 		},
 		{
-			name:   "Test case 2",
-			fields: fields{},
-			args: args{chain: &[]x509.Certificate{
-				{},
-			}},
-			want:   "",
-			errMsg: "no certificate found in the SAN attributes, please check if the certificate is an UZI Server Certificate",
+			name:   "InvalidPrivateKey",
+			der:    &pkcs1PrivateKey,
+			errMsg: "x509: failed to parse private key (use ParsePKCS1PrivateKey instead for this key format)",
 		},
 		{
-			name:   "Happy path",
-			fields: fields{},
-			args:   args{chain: chain},
-			want:   strings.Join([]string{"did", "x509", "0", alg, rootHashString, "", "san", "otherName.permanentIdentifier", "23123123"}, ":"),
-			errMsg: "",
+			name:   "NilDER",
+			der:    nil,
+			errMsg: "der is nil",
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			d := &DefaultDidCreator{}
-			got, err := d.CreateDid(tt.args.chain)
-			wantErr := tt.errMsg != ""
-			if (err != nil) != wantErr {
-				t.Errorf("DefaultDidCreator.CreateDid() error = %v, errMsg %v", err, tt.errMsg)
-				return
-			} else if wantErr {
-				if err.Error() != tt.errMsg {
-					t.Errorf("DefaultDidCreator.CreateDid() expected = \"%v\", got: \"%v\"", tt.errMsg, err.Error())
-				}
-			}
 
-			if got != tt.want {
-				t.Errorf("DefaultDidCreator.CreateDid() = \n%v\n, want: \n%v\n", got, tt.want)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := parser.ParsePrivateKey(tc.der)
+			if err != nil {
+				if err.Error() != tc.errMsg {
+					t.Errorf("got error %v, want %v", err, tc.errMsg)
+				}
 			}
 		})
 	}
@@ -172,7 +252,7 @@ func BuildCertChain(uzi string) (*[]x509.Certificate, *cert.Chain, *x509.Certifi
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
-	chainPems, err = fixChainHeaders(chainPems)
+	chainPems, err = FixChainHeaders(chainPems)
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
