@@ -24,8 +24,8 @@ const (
 	SAN_TYPE_OTHER_NAME SanTypeName = "otherName"
 )
 
-func FindUra(certificate *x509.Certificate) (string, SanTypeName, error) {
-	otherNameValue, err := FindOtherNameValue(certificate)
+func FindOtherName(certificate *x509.Certificate) (string, SanTypeName, error) {
+	otherNameValue, err := findOtherNameValue(certificate)
 	if err != nil {
 		return "", "", err
 	}
@@ -36,7 +36,7 @@ func FindUra(certificate *x509.Certificate) (string, SanTypeName, error) {
 	return "", "", err
 }
 
-func FindOtherNameValue(cert *x509.Certificate) (string, error) {
+func findOtherNameValue(cert *x509.Certificate) (string, error) {
 	value := ""
 	for _, extension := range cert.Extensions {
 		if extension.Id.Equal(SubjectAlternativeNameType) {
@@ -125,14 +125,14 @@ func FindSigningCertificate(chain *[]x509.Certificate) (*x509.Certificate, strin
 		return nil, "", fmt.Errorf("no certificates provided")
 	}
 	var err error
-	var ura string
+	var otherNameValue string
 	for _, c := range *chain {
-		ura, _, err = FindUra(&c)
+		otherNameValue, _, err = FindOtherName(&c)
 		if err != nil {
 			continue
 		}
-		if ura != "" {
-			return &c, ura, nil
+		if otherNameValue != "" {
+			return &c, otherNameValue, nil
 		}
 	}
 	return nil, "", err

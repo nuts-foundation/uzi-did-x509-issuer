@@ -69,11 +69,11 @@ func (d *DefaultDidProcessor) CreateDid(chain *[]x509.Certificate) (string, erro
 	if err != nil || certificate == nil {
 		return "", err
 	}
-	ura, sanType, err := x509_cert.FindUra(certificate)
+	otherNameValue, sanType, err := x509_cert.FindOtherName(certificate)
 	if err != nil {
 		return "", err
 	}
-	policy := CreatePolicy(ura, sanType)
+	policy := CreatePolicy(otherNameValue, sanType)
 	formattedDid, err := FormatDid(chain, policy)
 	return formattedDid, err
 }
@@ -98,8 +98,8 @@ func (d *DefaultDidProcessor) ParseDid(didString string) (*X509Did, error) {
 
 // CreatePolicy constructs a policy string using the provided URA, fixed string "san", and "permanentIdentifier".
 // It joins these components with colons and returns the resulting policy string.
-func CreatePolicy(ura string, sanType x509_cert.SanTypeName) string {
-	fragments := []string{"san", string(sanType), ura}
+func CreatePolicy(otherNameValue string, sanType x509_cert.SanTypeName) string {
+	fragments := []string{"san", string(sanType), otherNameValue}
 	policy := strings.Join(fragments, ":")
 	return policy
 }

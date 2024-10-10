@@ -39,15 +39,12 @@ A UziServerCertificateCredential is valid when:
    the [UZI-register certificate chain](https://www.zorgcsp.nl/ca-certificaten).
 6. The issuer of the credential MUST be a `did:x509` with changes defined in the
    section [Changes to the did:x509 Method Specification](#changes-to-the-did-x509-method-specification).
-7. The issuer of the credential MUST have either `san:otherName.permanentIdentifier:<ura-number>` or
-   `san:otherName:<ura-number>` policy.
-    1. If the policy is set to `san:otherName:<ura-number>`, the value of `<ura-number>` MUST match the value of the
-       `SubjectAltName (2.5.29.17)` `OtherName (2.5.5.5)` with the group 1 of the following regular expression:
-       ```regexp
-       2\.16\.528\.1\.1007.\d+\.\d+-\d+-\d+-S-(\d+)-00\.000-\d+
-       ```
-    2. If the policy is `san:otherName.permanentIdentifier:<ura-number>`, the value of `<ura-number>` MUST match the
-       value of the `SubjectAltName (2.5.29.17)` `PermanentIdentifier (1.3.6.1.5.5.7.8.3)`.
+7. The issuer of the credential MUST have an `san:otherName:<othername-value>` policy.
+8. The value of `<othername-value>` MUST match the value of the
+   `SubjectAltName (2.5.29.17)` `OtherName (2.5.5.5)` with the group 1 of the following regular expression as the URA number:
+   ```regexp
+   2\.16\.528\.1\.1007.\d+\.\d+-\d+-\d+-S-(\d+)-00\.000-\d+
+   ```
 
 ## Changes to the did:x509 Method Specification
 

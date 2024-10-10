@@ -71,7 +71,7 @@ func (u UraValidatorImpl) Validate(jwtString string) error {
 	if err != nil {
 		return err
 	}
-	ura, sanType, err := x509_cert.FindUra(signingCert)
+	ura, sanType, err := x509_cert.FindOtherName(signingCert)
 	if err != nil {
 		return err
 	}

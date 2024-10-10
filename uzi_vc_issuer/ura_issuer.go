@@ -21,6 +21,7 @@ import (
 	pem2 "headease-nuts-pki-overheid-issuer/pem"
 	"headease-nuts-pki-overheid-issuer/uzi_vc_validator"
 	"headease-nuts-pki-overheid-issuer/x509_cert"
+	"regexp"
 	"time"
 )
 import "github.com/nuts-foundation/go-did/vc"
@@ -110,7 +111,7 @@ func (u DefaultUraIssuer) Issue(certificateFile string, signingKeyFile string, s
 
 // BuildUraVerifiableCredential constructs a verifiable credential with specified certificates, signing key, subject DID, and subject name.
 func (v DefaultUraIssuer) BuildUraVerifiableCredential(certificates *[]x509.Certificate, signingKey *rsa.PrivateKey, subjectDID string, subjectName string) (*vc.VerifiableCredential, error) {
-	signingCert, ura, err := x509_cert.FindSigningCertificate(certificates)
+	signingCert, otherNameValue, err := x509_cert.FindSigningCertificate(certificates)
 	if err != nil {
 		return nil, err
 	}
@@ -128,11 +129,11 @@ func (v DefaultUraIssuer) BuildUraVerifiableCredential(certificates *[]x509.Cert
 		return nil, errors.New("serialNumber not found in signing certificate ")
 	}
 	uzi := serialNumber
-	template, err := uraCredential(did, ura, uzi, subjectDID, subjectName)
+	template, err := uraCredential(did, otherNameValue, uzi, subjectDID, subjectName)
 	if err != nil {
 		return nil, err
 	}
-	credential, err := vc.CreateJWTVerifiableCredential(context.Background(), template, func(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}) (string, error) {
+	credential, err := vc.CreateJWTVerifiableCredential(context.Background(), *template, func(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}) (string, error) {
 		token, err := convertClaims(claims)
 		if err != nil {
 			return "", err
@@ -246,10 +247,14 @@ func convertHeaders(headers map[string]interface{}) (jws.Headers, error) {
 
 // uraCredential generates a VerifiableCredential for a given URA and UZI number, including the subject's DID and name.
 // It sets a 1-year expiration period from the current issuance date.
-func uraCredential(did string, ura string, uzi string, subjectDID string, subjectName string) (vc.VerifiableCredential, error) {
+func uraCredential(did string, otherNameValue string, uzi string, subjectDID string, subjectName string) (*vc.VerifiableCredential, error) {
 	exp := time.Now().Add(time.Hour * 24 * 365)
 	iat := time.Now()
-	return vc.VerifiableCredential{
+	ura, err := parseUraFromOtherNameValue(otherNameValue)
+	if err != nil {
+		return nil, err
+	}
+	return &vc.VerifiableCredential{
 		Issuer:         ssi.MustParseURI(did),
 		Context:        []ssi.URI{ssi.MustParseURI("https://www.w3.org/2018/credentials/v1")},
 		Type:           []ssi.URI{ssi.MustParseURI("VerifiableCredential"), ssi.MustParseURI("UziServerCertificateCredential")},
@@ -261,8 +266,18 @@ func uraCredential(did string, ura string, uzi string, subjectDID string, subjec
 				"id":        subjectDID,
 				"name":      subjectName,
 				"uraNumber": ura,
+				"otherName": otherNameValue,
 				"uziNumber": uzi,
 			},
 		},
 	}, nil
+}
+
+func parseUraFromOtherNameValue(value string) (string, error) {
+	re := regexp.MustCompile("2\\.16\\.528\\.1\\.1007.\\d+\\.\\d+-\\d+-\\d+-S-(\\d+)-00\\.000-\\d+")
+	submatch := re.FindStringSubmatch(value)
+	if len(submatch) < 2 {
+		return "", errors.New("failed to parse URA from OtherNameValue")
+	}
+	return submatch[1], nil
 }
