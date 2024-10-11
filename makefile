@@ -22,7 +22,7 @@ GIT_COMMIT ?= "$(shell git rev-list -1 HEAD)"
 GIT_BRANCH ?= "$(shell git symbolic-ref --short HEAD)"
 GIT_VERSION ?= "$(shell git name-rev --tags --name-only $(shell git rev-parse HEAD))"
 build:
-	go build -tags jwx_es256k -ldflags="-w -s -o ${OUTPUT}"
+	go build -ldflags="-w -s" -o "${OUTPUT}"
 
 docker:
 	docker build --build-arg GIT_COMMIT=${GIT_COMMIT} --build-arg GIT_BRANCH=${GIT_BRANCH} --build-arg GIT_VERSION=${GIT_VERSION} -t github.com/Headease/pki-overheid-issuer:master .
