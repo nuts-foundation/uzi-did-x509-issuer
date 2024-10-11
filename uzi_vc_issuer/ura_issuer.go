@@ -143,6 +143,13 @@ func (v DefaultUraIssuer) BuildUraVerifiableCredential(certificates *[]x509.Cert
 			return "", err
 		}
 
+		if hdrs.KeyID() == "" {
+			err := hdrs.Set("kid", did)
+			if err != nil {
+				return "", err
+			}
+		}
+
 		// x5c
 		serializedCert, err := marshalChain(chain)
 		if err != nil {
