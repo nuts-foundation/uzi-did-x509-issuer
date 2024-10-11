@@ -81,8 +81,7 @@ Follow these steps to set up the project:
     ```
 
 ## Project UZI CA and Intermediate CA files
-
-The [./ca_certs](./ca_certs) directory contains the current set of intermediate and root CA (test) certificates issued by the Dutch government:
+This project downloads the relevant CA certs from:
 - [https://www.zorgcsp.nl/ca-certificaten](https://www.zorgcsp.nl/ca-certificaten)
 - [https://acceptatie.zorgcsp.nl/ca-certificaten](https://acceptatie.zorgcsp.nl/ca-certificaten)
 
