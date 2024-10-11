@@ -32,7 +32,7 @@ type UraIssuer interface {
 	Issue(certificateFile string, signingKeyFile string, subjectDID string, subjectName string) (string, error)
 }
 
-var RegexOtherNameValue = regexp.MustCompile(`2\\.16\\.528\\.1\\.1007.\\d+\\.\\d+-\\d+-\\d+-S-(\\d+)-00\\.000-\\d+`)
+var RegexOtherNameValue = regexp.MustCompile(`2\.16\.528\.1\.1007.\d+\.\d+-\d+-\d+-S-(\d+)-00\.000-\d+`)
 
 // DefaultUraIssuer is responsible for building URA (UZI-register abonneenummer) Verifiable Credentials.
 // It utilizes a DidCreator to generate Decentralized Identifiers (DIDs) given a chain of x509 certificates.
