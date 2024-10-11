@@ -123,7 +123,7 @@ func readCertificateFromUrl(url string) (*x509.Certificate, error) {
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {
-			// ignore
+			fmt.Printf("Error closing body: %v", err)
 		}
 	}(response.Body)
 

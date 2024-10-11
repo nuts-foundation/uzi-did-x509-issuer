@@ -32,6 +32,8 @@ type UraIssuer interface {
 	Issue(certificateFile string, signingKeyFile string, subjectDID string, subjectName string) (string, error)
 }
 
+var RegexOtherNameValue = regexp.MustCompile(`2\\.16\\.528\\.1\\.1007.\\d+\\.\\d+-\\d+-\\d+-S-(\\d+)-00\\.000-\\d+`)
+
 // DefaultUraIssuer is responsible for building URA (UZI-register abonneenummer) Verifiable Credentials.
 // It utilizes a DidCreator to generate Decentralized Identifiers (DIDs) given a chain of x509 certificates.
 type DefaultUraIssuer struct {
@@ -52,6 +54,9 @@ func (u DefaultUraIssuer) Issue(certificateFile string, signingKeyFile string, s
 		return "", err
 	}
 	_certificates, err := u.chainParser.ParseCertificates(certificate)
+	if err != nil {
+		return "", err
+	}
 	if len(*_certificates) != 1 {
 		err = fmt.Errorf("did not find exactly one certificate in file %s", certificateFile)
 		return "", err
@@ -280,8 +285,7 @@ func uraCredential(did string, otherNameValue string, uzi string, subjectDID str
 }
 
 func parseUraFromOtherNameValue(value string) (string, error) {
-	re := regexp.MustCompile("2\\.16\\.528\\.1\\.1007.\\d+\\.\\d+-\\d+-\\d+-S-(\\d+)-00\\.000-\\d+")
-	submatch := re.FindStringSubmatch(value)
+	submatch := RegexOtherNameValue.FindStringSubmatch(value)
 	if len(submatch) < 2 {
 		return "", errors.New("failed to parse URA from OtherNameValue")
 	}
