@@ -14,7 +14,8 @@ The UZI Server Certificaat Issuer generated a Verifiable Credential of type UziS
 - The DID method is a customized did:x509 DID pointing to the x5c header.
 - The x5c filled with the certificate chain. The chain is built from:
   - The provided UZI server (Test) Certificate
-  - All the required certificates from the ./chain directory. 
+  - All the required certificates from the [UZI register](https://www.zorgcsp.nl/certificate-revocation-lists-crl-s). 
+  - If the test mode is enabled, the [Test UZI register](https://acceptatie.zorgcsp.nl/ca-certificaten)
 - Signed by the private key of the UZI Server Certificaat.
 - The VC issued to the provided DID and name.
 
@@ -37,11 +38,11 @@ Follow these steps to set up the project:
 
 1. **Clone the repository:**
    ```sh
-   git clone https://github.com/yourusername/headease-nuts-pki-overheid-issuer.git
+   git clone https://github.com/nuts-foundation/uzi-did-x509-issuer
    ```
 2. **Change to the project directory:**
    ```sh
-   cd uzi-servercertificaat-issuer
+   cd uzi-did-x509-issuer
    ```
 3. **Download dependencies:**
    ```sh
@@ -64,11 +65,20 @@ Follow these steps to set up the project:
    ```sh
    ./issuer --help
    ```
-3. **Example call for generating a VC:**
+3. **Call for generating a VC:**
    - The following parameters are required:
      - **certificate_file**, the PEM file of the URA server certificate
      - **signing_key** ,the unencrypted PEM file of the private key used for signing.
      - **subject_did** and **subject_name**, the vc.subject.id and  vc.subject.name of the generated verifiable credential.
+### Examples
+ - **Example call with a TEST certificate**
+    ```
+    ./issuer vc cert.pem key.key did:web:example.com:example --test
+    ```
+ - **Example call with a production certificate**
+    ```
+    ./issuer vc cert.pem key.key did:web:example.com:example
+    ```
 
 ## Project UZI CA and Intermediate CA files
 
