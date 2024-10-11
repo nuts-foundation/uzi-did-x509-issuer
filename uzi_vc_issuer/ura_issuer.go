@@ -45,7 +45,7 @@ func NewUraVcBuilder(didCreator did_x509.DidCreator, chainParser x509_cert.Chain
 }
 
 // Issue generates a URA Verifiable Credential using provided certificate, signing key, subject DID, and subject name.
-func (u DefaultUraIssuer) Issue(certificateFile string, signingKeyFile string, subjectDID string, subjectName string, test bool) (string, error) {
+func (u DefaultUraIssuer) Issue(certificateFile string, signingKeyFile string, subjectDID string, test bool) (string, error) {
 	reader := pem2.NewPemReader()
 	certificate, err := reader.ParseFileOrPath(certificateFile, "CERTIFICATE")
 	if err != nil {
@@ -90,7 +90,7 @@ func (u DefaultUraIssuer) Issue(certificateFile string, signingKeyFile string, s
 		return "", err
 	}
 
-	credential, err := u.BuildUraVerifiableCredential(certChain, privateKey, subjectDID, subjectName)
+	credential, err := u.BuildUraVerifiableCredential(certChain, privateKey, subjectDID)
 	if err != nil {
 		return "", err
 	}
@@ -109,8 +109,8 @@ func (u DefaultUraIssuer) Issue(certificateFile string, signingKeyFile string, s
 	return jwtString, nil
 }
 
-// BuildUraVerifiableCredential constructs a verifiable credential with specified certificates, signing key, subject DID, and subject name.
-func (v DefaultUraIssuer) BuildUraVerifiableCredential(certificates *[]x509.Certificate, signingKey *rsa.PrivateKey, subjectDID string, subjectName string) (*vc.VerifiableCredential, error) {
+// BuildUraVerifiableCredential constructs a verifiable credential with specified certificates, signing key, subject DID.
+func (v DefaultUraIssuer) BuildUraVerifiableCredential(certificates *[]x509.Certificate, signingKey *rsa.PrivateKey, subjectDID string) (*vc.VerifiableCredential, error) {
 	signingCert, otherNameValue, err := x509_cert.FindSigningCertificate(certificates)
 	if err != nil {
 		return nil, err
@@ -129,7 +129,7 @@ func (v DefaultUraIssuer) BuildUraVerifiableCredential(certificates *[]x509.Cert
 		return nil, errors.New("serialNumber not found in signing certificate ")
 	}
 	uzi := serialNumber
-	template, err := uraCredential(did, otherNameValue, uzi, subjectDID, subjectName)
+	template, err := uraCredential(did, otherNameValue, uzi, subjectDID)
 	if err != nil {
 		return nil, err
 	}
@@ -245,10 +245,10 @@ func convertHeaders(headers map[string]interface{}) (jws.Headers, error) {
 	return hdr, nil
 }
 
-// uraCredential generates a VerifiableCredential for a given URA and UZI number, including the subject's DID and name.
+// uraCredential generates a VerifiableCredential for a given URA and UZI number, including the subject's DID.
 // It sets a 1-year expiration period from the current issuance date.
-func uraCredential(did string, otherNameValue string, uzi string, subjectDID string, subjectName string) (*vc.VerifiableCredential, error) {
-	exp := time.Now().Add(time.Hour * 24 * 365)
+func uraCredential(did string, otherNameValue string, uzi string, subjectDID string) (*vc.VerifiableCredential, error) {
+	exp := time.Now().Add(time.Hour * 24 * 365 * 100)
 	iat := time.Now()
 	ura, err := parseUraFromOtherNameValue(otherNameValue)
 	if err != nil {
@@ -264,7 +264,6 @@ func uraCredential(did string, otherNameValue string, uzi string, subjectDID str
 		CredentialSubject: []interface{}{
 			map[string]interface{}{
 				"id":        subjectDID,
-				"name":      subjectName,
 				"uraNumber": ura,
 				"otherName": otherNameValue,
 				"uziNumber": uzi,

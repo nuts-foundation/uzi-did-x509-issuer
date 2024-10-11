@@ -26,14 +26,14 @@ func TestBuildUraVerifiableCredential(t *testing.T) {
 
 	tests := []struct {
 		name string
-		in   func() (*[]x509.Certificate, *rsa.PrivateKey, string, string)
+		in   func() (*[]x509.Certificate, *rsa.PrivateKey, string)
 		want func(error) bool
 	}{
 		{
 			name: "invalid signing certificate",
-			in: func() (*[]x509.Certificate, *rsa.PrivateKey, string, string) {
+			in: func() (*[]x509.Certificate, *rsa.PrivateKey, string) {
 				certs := []x509.Certificate{*cert}
-				return &certs, privKey, "did:example:123", "John Doe"
+				return &certs, privKey, "did:example:123"
 			},
 			want: func(err error) bool {
 				return err != nil
@@ -46,8 +46,8 @@ func TestBuildUraVerifiableCredential(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			certificates, signingKey, subjectDID, subjectName := tt.in()
-			_, err := builder.BuildUraVerifiableCredential(certificates, signingKey, subjectDID, subjectName)
+			certificates, signingKey, subjectDID := tt.in()
+			_, err := builder.BuildUraVerifiableCredential(certificates, signingKey, subjectDID)
 			if got := tt.want(err); !got {
 				t.Errorf("BuildUraVerifiableCredential() error = %v", err)
 			}

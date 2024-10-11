@@ -13,7 +13,6 @@ type VC struct {
 	CertificateFile string `arg:"" name:"certificate_file" help:"Certificate PEM file." type:"existingfile"`
 	SigningKey      string `arg:"" name:"signing_key" help:"PEM key for signing." type:"existingfile"`
 	SubjectDID      string `arg:"" name:"subject_did" help:"The subject DID of the VC." type:"key"`
-	SubjectName     string `arg:"" name:"subject_name" help:"The subject name of the VC." type:"key"`
 	Test            bool   `short:"t" help:"Allow test certificates."`
 }
 
@@ -45,5 +44,5 @@ func issueVc(vc VC) (string, error) {
 	didCreator := did_x509.NewDidCreator()
 	chainParser := x509_cert.NewDefaultChainParser()
 	issuer := uzi_vc_issuer.NewUraVcBuilder(didCreator, chainParser)
-	return issuer.Issue(vc.CertificateFile, vc.SigningKey, vc.SubjectDID, vc.SubjectName, vc.Test)
+	return issuer.Issue(vc.CertificateFile, vc.SigningKey, vc.SubjectDID, vc.Test)
 }
