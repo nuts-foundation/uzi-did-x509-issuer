@@ -16,7 +16,7 @@ The Verifiable Credential has the following structure:
 1. The credential has a type `UziServerCertificateCredential`.
 2. The `subject.id` points to the holder of the credential, typically a `did:nuts` or `did:web`.
 3. The credential is issued by a `did:x509`, with changes defined in the
-   section [Changes to the did:x509 Method Specification](#changes-to-the-did-x509-method-specification), as part of
+   section [Changes to the did:x509 Method Specification](#changes-to-the-didx509-method-specification), as part of
    this specification:
     1. The `x5c` header contains the UZI Server Certificate with the full certificate chain.
     2. The `x5t` header contains the sha1 hash of the UZI Server Certificate.
@@ -38,7 +38,7 @@ A UziServerCertificateCredential is valid when:
 5. The UZI Server Certificate chain MUST be valid and match
    the [UZI-register certificate chain](https://www.zorgcsp.nl/ca-certificaten).
 6. The issuer of the credential MUST be a `did:x509` with changes defined in the
-   section [Changes to the did:x509 Method Specification](#changes-to-the-did-x509-method-specification).
+   section [Changes to the did:x509 Method Specification](#changes-to-the-didx509-method-specification).
 7. The issuer of the credential MUST have an `san:otherName:<othername-value>` policy.
 8. The value of `<othername-value>` MUST match the value of the
    `SubjectAltName (2.5.29.17)` `OtherName (2.5.5.5)` with the group 1 of the following regular expression as the URA number:
