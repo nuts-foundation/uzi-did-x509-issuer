@@ -48,4 +48,12 @@ A UziServerCertificateCredential is valid when:
 
 ## Changes to the did:x509 Method Specification
 
-The UziServerCertificateCredential makes use of an additional method:
+The UziServerCertificateCredential makes use of an additional otherName san-type. This 
+san-type is currently not part of the x509 standard. The suggested policy definition will look like this:
+```
+policy-name     = "san"
+policy-value    = san-type ":" san-value
+san-type        = "email" / "dns" / "uri" / "otherName"
+san-value       = 1*idchar
+```
+A request to support this will be 
