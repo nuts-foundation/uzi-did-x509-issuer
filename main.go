@@ -70,13 +70,17 @@ func main() {
 			os.Exit(-1)
 		}
 
-		os.WriteFile("chain.pem", chainPems, 0644)
-		os.WriteFile("signing_key.pem", signingKeyPem, 0644)
-
+		err = os.WriteFile("chain.pem", chainPems, 0644)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(-1)
 		}
+		err = os.WriteFile("signing_key.pem", signingKeyPem, 0644)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(-1)
+		}
+
 	default:
 		fmt.Println("Unknown command")
 		os.Exit(-1)
