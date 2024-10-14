@@ -216,36 +216,24 @@ func BuildCertificateChain(certs []*x509.Certificate) []*x509.Certificate {
 	var chain []*x509.Certificate
 	chain = append(chain, signingCert)
 
-	var root *x509.Certificate
-	if !x509_cert.IsRootCa(signingCert) {
-		// find the root certificate
+	certToCheck := signingCert
+	for !x509_cert.IsRootCa(certToCheck) {
+		found := false
 		for _, c := range certs {
-			if x509_cert.IsRootCa(c) {
-				root = c
+			if c.Equal(signingCert) {
+				continue
+			}
+			err := certToCheck.CheckSignatureFrom(c)
+			if err == nil {
+				chain = append(chain, c)
+				certToCheck = c
+				found = true
 				break
 			}
 		}
-
-		certToCheck := signingCert
-		for !certToCheck.Equal(root) {
-			found := false
-			for _, c := range certs {
-				if c.Equal(signingCert) {
-					continue
-				}
-				err := certToCheck.CheckSignatureFrom(c)
-				if err == nil {
-
-					chain = append(chain, c)
-					certToCheck = c
-					found = true
-					break
-				}
-			}
-			if !found {
-				fmt.Println("failed to find path from signingCert to root")
-				return nil
-			}
+		if !found {
+			fmt.Println("failed to find path from signingCert to root")
+			return nil
 		}
 	}
 	return chain
