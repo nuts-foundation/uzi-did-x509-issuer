@@ -16,9 +16,10 @@ type VC struct {
 }
 
 type TestCert struct {
-	Uzi string `arg:"" name:"uzi" help:"The UZI number for the test certificate."`
-	Ura string `arg:"" name:"ura" help:"The URA number for the test certificate."`
-	Agb string `arg:"" name:"agb" help:"The AGB code for the test certificate."`
+	Uzi        string `arg:"" name:"uzi" help:"The UZI number for the test certificate."`
+	Ura        string `arg:"" name:"ura" help:"The URA number for the test certificate."`
+	Agb        string `arg:"" name:"agb" help:"The AGB code for the test certificate."`
+	SubjectDID string `arg:"" default:"did:web:example.com:test" name:"subject_did" help:"The subject DID of the VC." type:"key"`
 }
 
 var CLI struct {
@@ -47,7 +48,7 @@ func main() {
 			os.Exit(-1)
 		}
 		println(jwt)
-	case "test-cert <uzi> <ura> <agb>":
+	case "test-cert <uzi> <ura> <agb>", "test-cert <uzi> <ura> <agb> <subject_did>":
 		// Format is 2.16.528.1.1007.99.2110-1-900030787-S-90000380-00.000-11223344
 		// <OID CA>-<versie-nr>-<UZI-nr>-<pastype>-<Abonnee-nr>-<rol>-<AGB-code>
 		// 2.16.528.1.1007.99.2110-1-<UZI-nr>-S-<Abonnee-nr>-00.000-<AGB-code>
@@ -80,7 +81,18 @@ func main() {
 			fmt.Println(err)
 			os.Exit(-1)
 		}
-
+		vc := VC{
+			CertificateFile: "chain.pem",
+			SigningKey:      "signing_key.pem",
+			SubjectDID:      cli.TestCert.SubjectDID,
+			Test:            false,
+		}
+		jwt, err := issueVc(vc)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(-1)
+		}
+		println(jwt)
 	default:
 		fmt.Println("Unknown command")
 		os.Exit(-1)
