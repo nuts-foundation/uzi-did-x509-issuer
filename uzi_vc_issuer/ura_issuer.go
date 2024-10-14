@@ -37,13 +37,12 @@ var RegexOtherNameValue = regexp.MustCompile(`2\.16\.528\.1\.1007.\d+\.\d+-\d+-\
 // DefaultUraIssuer is responsible for building URA (UZI-register abonneenummer) Verifiable Credentials.
 // It utilizes a DidCreator to generate Decentralized Identifiers (DIDs) given a chain of x509 certificates.
 type DefaultUraIssuer struct {
-	didCreator  did_x509.DidCreator
 	chainParser x509_cert.ChainParser
 }
 
 // NewUraVcBuilder initializes and returns a new instance of DefaultUraIssuer with the provided DidCreator.
-func NewUraVcBuilder(didCreator did_x509.DidCreator, chainParser x509_cert.ChainParser) *DefaultUraIssuer {
-	return &DefaultUraIssuer{didCreator, chainParser}
+func NewUraVcBuilder(chainParser x509_cert.ChainParser) *DefaultUraIssuer {
+	return &DefaultUraIssuer{chainParser}
 }
 
 // Issue generates a URA Verifiable Credential using provided certificate, signing key, subject DID, and subject name.
@@ -103,7 +102,7 @@ func (u DefaultUraIssuer) Issue(certificateFile string, signingKeyFile string, s
 	if err != nil {
 		return "", err
 	}
-	validator := uzi_vc_validator.NewUraValidator(did_x509.NewDidParser(), test)
+	validator := uzi_vc_validator.NewUraValidator(test)
 	jwtString := string(marshal)
 	jwtString = jwtString[1:]                // Chop start
 	jwtString = jwtString[:len(jwtString)-1] // Chop end
@@ -125,7 +124,7 @@ func (v DefaultUraIssuer) BuildUraVerifiableCredential(certificates *[]x509.Cert
 	if err != nil {
 		return nil, err
 	}
-	did, err := v.didCreator.CreateDid(chain)
+	did, err := did_x509.CreateDid(chain)
 	if err != nil {
 		return nil, err
 	}
