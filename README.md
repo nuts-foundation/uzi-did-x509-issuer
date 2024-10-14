@@ -1,5 +1,6 @@
-# Nuts UZI Server Certificaat Issuer 
+[![Maintainability](https://api.codeclimate.com/v1/badges/f92496250890e40900aa/maintainability)](https://codeclimate.com/github/nuts-foundation/uzi-did-x509-issuer/maintainability)
 
+# Nuts UZI Server Certificaat Issuer
 
 < 8 nov 2023
 
@@ -14,15 +15,17 @@ The UZI Server Certificaat Issuer generated a Verifiable Credential of type UziS
 - The DID method is a customized did:x509 DID pointing to the x5c header.
 - The x5c filled with the certificate chain. The chain is built from:
   - The provided UZI server (Test) Certificate
-  - All the required certificates from the [UZI register](https://www.zorgcsp.nl/certificate-revocation-lists-crl-s). 
+  - All the required certificates from the [UZI register](https://www.zorgcsp.nl/certificate-revocation-lists-crl-s).
   - If the test mode is enabled, the [Test UZI register](https://acceptatie.zorgcsp.nl/ca-certificaten)
 - Signed by the private key of the UZI Server Certificaat.
 - The VC issued to the provided DID and name.
 
-## Note on security, trust, and secrecy 
+## Note on security, trust, and secrecy
+
 The VC that is signed by this application are cryptographic proofs, signed by the private key used in the UZI Server Certificate process. Note that:
-* This private key is supposed to be kept very secret.
-* The Subject DID of the signed credential is mandated with cryptographic proof to act on behalf of the owner of the private key on the NUTS network.  
+
+- This private key is supposed to be kept very secret.
+- The Subject DID of the signed credential is mandated with cryptographic proof to act on behalf of the owner of the private key on the NUTS network.
 
 ## Prerequisites
 
@@ -56,6 +59,7 @@ Follow these steps to set up the project:
 ## Usage
 
 1. **Run the application:**
+
    ```sh
    ./issuer
    ```
@@ -69,27 +73,34 @@ Follow these steps to set up the project:
    - The following parameters are required:
      - **certificate_file**, the PEM file of the URA server certificate
      - **signing_key** ,the unencrypted PEM file of the private key used for signing.
-     - **subject_did** and **subject_name**, the vc.subject.id and  vc.subject.name of the generated verifiable credential.
+     - **subject_did** and **subject_name**, the vc.subject.id and vc.subject.name of the generated verifiable credential.
+
 ### Examples
- - **Example call with a TEST certificate**
-    ```
-    ./issuer vc cert.pem key.key did:web:example.com:example --test
-    ```
- - **Example call with a production certificate**
-    ```
-    ./issuer vc cert.pem key.key did:web:example.com:example
-    ```
+
+- **Example call with a TEST certificate**
+  ```
+  ./issuer vc cert.pem key.key did:web:example.com:example --test
+  ```
+- **Example call with a production certificate**
+  ```
+  ./issuer vc cert.pem key.key did:web:example.com:example
+  ```
 
 ## Project UZI CA and Intermediate CA files
+
 This project downloads the relevant CA certs from:
+
 - [https://www.zorgcsp.nl/ca-certificaten](https://www.zorgcsp.nl/ca-certificaten)
 - [https://acceptatie.zorgcsp.nl/ca-certificaten](https://acceptatie.zorgcsp.nl/ca-certificaten)
 
 ## Converting to PEM files:
+
 The following command converts .cer files to PEM:
+
 ```shell
  openssl x509 -inform der -in certificate.cer -out certificate.pem
 ```
+
 ## Validating a UziServerCertificateCredential
 
 The logic on Validating a UziServerCertificateCredential is described in the [VC_VALIDATION.md](VC_VALIDATION.md) file.
