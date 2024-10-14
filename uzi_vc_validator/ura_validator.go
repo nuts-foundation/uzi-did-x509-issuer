@@ -39,7 +39,7 @@ type JwtHeaderValues struct {
 
 func (u UraValidatorImpl) Validate(jwtString string) error {
 	credential := &vc.VerifiableCredential{}
-	err := json.Unmarshal([]byte("\""+jwtString+"\""), credential)
+	err := json.Unmarshal([]byte(fmt.Sprintf("\"%s\"", jwtString)), credential)
 	if err != nil {
 		return err
 	}
