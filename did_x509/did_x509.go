@@ -22,7 +22,7 @@ type X509Did struct {
 // DidCreator is an interface for creating a DID (Decentralized Identifier) given a chain of x509 certificates.
 // The CreateDid method takes a slice of x509.Certificate and returns a DID as a string and an error if any.
 type DidCreator interface {
-	CreateDid(chain *[]x509.Certificate) (string, error)
+	CreateDid(signingCert, caCert *x509.Certificate) (string, error)
 }
 
 type DidParser interface {
@@ -43,13 +43,9 @@ func NewDidParser() *DefaultDidProcessor {
 
 // FormatDid constructs a decentralized identifier (DID) from a certificate chain and an optional policy.
 // It returns the formatted DID string or an error if the root certificate or hash calculation fails.
-func FormatDid(chain *[]x509.Certificate, policy string) (string, error) {
-	root, err := FindRootCertificate(chain)
-	if err != nil {
-		return "", err
-	}
+func FormatDid(ca *x509.Certificate, policy string) (string, error) {
 	alg := "sha512"
-	rootHash, err := x509_cert.Hash(root.Raw, alg)
+	rootHash, err := x509_cert.Hash(ca.Raw, alg)
 	if err != nil {
 		return "", err
 	}
@@ -64,17 +60,13 @@ func FormatDid(chain *[]x509.Certificate, policy string) (string, error) {
 // CreateDid generates a Decentralized Identifier (DID) from a given certificate chain.
 // It extracts the Unique Registration Address (URA) from the chain, creates a policy with it, and formats the DID.
 // Returns the generated DID or an error if any step fails.
-func (d *DefaultDidProcessor) CreateDid(chain *[]x509.Certificate) (string, error) {
-	certificate, _, err := x509_cert.FindSigningCertificate(chain)
-	if err != nil || certificate == nil {
-		return "", err
-	}
-	otherNameValue, sanType, err := x509_cert.FindOtherName(certificate)
+func (d *DefaultDidProcessor) CreateDid(signingCert, caCert *x509.Certificate) (string, error) {
+	otherNameValue, sanType, err := x509_cert.FindOtherName(signingCert)
 	if err != nil {
 		return "", err
 	}
 	policy := CreatePolicy(otherNameValue, sanType)
-	formattedDid, err := FormatDid(chain, policy)
+	formattedDid, err := FormatDid(caCert, policy)
 	return formattedDid, err
 }
 func (d *DefaultDidProcessor) ParseDid(didString string) (*X509Did, error) {
@@ -105,10 +97,10 @@ func CreatePolicy(otherNameValue string, sanType x509_cert.SanTypeName) string {
 }
 
 // FindRootCertificate traverses a chain of x509 certificates and returns the first certificate that is a CA.
-func FindRootCertificate(chain *[]x509.Certificate) (*x509.Certificate, error) {
-	for _, cert := range *chain {
+func FindRootCertificate(chain []*x509.Certificate) (*x509.Certificate, error) {
+	for _, cert := range chain {
 		if cert.IsCA {
-			return &cert, nil
+			return cert, nil
 		}
 	}
 	return nil, fmt.Errorf("cannot find root certificate")

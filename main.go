@@ -16,9 +16,14 @@ type VC struct {
 	Test            bool   `short:"t" help:"Allow test certificates."`
 }
 
+type TestCert struct {
+	Identifier string `arg:"" name:"identifier" help:"Identifier for the test certificate such as an URA or UZI number."`
+}
+
 var CLI struct {
-	Version string `help:"Show version."`
-	Vc      VC     `cmd:"" help:"Create a new VC."`
+	Version  string   `help:"Show version."`
+	Vc       VC       `cmd:"" help:"Create a new VC."`
+	TestCert TestCert `cmd:"" help:"Create a new test certificate."`
 }
 
 func main() {
@@ -27,17 +32,51 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	_, err = parser.Parse(os.Args[1:])
+	ctx, err := parser.Parse(os.Args[1:])
 	if err != nil {
 		parser.FatalIfErrorf(err)
 	}
-	vc := cli.Vc
-	jwt, err := issueVc(vc)
-	if err != nil {
-		fmt.Println(err)
+
+	switch ctx.Command() {
+	case "vc <certificate_file> <signing_key> <subject_did>":
+		vc := cli.Vc
+		jwt, err := issueVc(vc)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(-1)
+		}
+		println(jwt)
+	case "test-cert <identifier>":
+		otherName := fmt.Sprintf("2.16.528.1.1007.1.%s", cli.TestCert.Identifier)
+		fmt.Println("Building certificate chain for identifier:", otherName)
+		chain, _, _, privKey, _, err := x509_cert.BuildCertChain(cli.TestCert.Identifier)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(-1)
+		}
+
+		chainPems, err := x509_cert.EncodeCertificates(chain...)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(-1)
+		}
+		signingKeyPem, err := x509_cert.EncodeRSAPrivateKey(privKey)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(-1)
+		}
+
+		os.WriteFile("chain.pem", chainPems, 0644)
+		os.WriteFile("signing_key.pem", signingKeyPem, 0644)
+
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(-1)
+		}
+	default:
+		fmt.Println("Unknown command")
 		os.Exit(-1)
 	}
-	println(jwt)
 }
 
 func issueVc(vc VC) (string, error) {

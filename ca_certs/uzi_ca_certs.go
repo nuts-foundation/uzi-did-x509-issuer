@@ -29,12 +29,12 @@ func GetCertPools(includeTest bool) (root *x509.CertPool, intermediate *x509.Cer
 	return downloadUziPool(pool)
 }
 
-func GetCerts(includeTest bool) (*[]x509.Certificate, error) {
+func GetCerts(includeTest bool) ([]*x509.Certificate, error) {
 	pool := prepareAndCombinePools(includeTest)
 	return downloadUziPoolCerts(pool)
 }
 
-func GetDERs(includeTest bool) (*[][]byte, error) {
+func GetDERs(includeTest bool) ([][]byte, error) {
 	pool := prepareAndCombinePools(includeTest)
 	return downloadUziPoolDERs(pool)
 }
@@ -50,19 +50,19 @@ func prepareAndCombinePools(includeTest bool) UziCaPool {
 	return pool
 }
 
-func downloadUziPoolDERs(pool UziCaPool) (*[][]byte, error) {
+func downloadUziPoolDERs(pool UziCaPool) ([][]byte, error) {
 	var rv = [][]byte{}
 	certs, err := downloadUziPoolCerts(pool)
 	if err != nil {
 		return nil, err
 	}
-	for _, cert := range *certs {
+	for _, cert := range certs {
 		rv = append(rv, cert.Raw)
 	}
-	return &rv, err
+	return rv, err
 }
 
-func GetTestCerts() (*[]x509.Certificate, error) {
+func GetTestCerts() ([]*x509.Certificate, error) {
 	return downloadUziPoolCerts(TestUziCaPool)
 }
 
@@ -81,7 +81,7 @@ func downloadUziPool(pool UziCaPool) (*x509.CertPool, *x509.CertPool, error) {
 	return roots, intermediates, nil
 }
 
-func downloadUziPoolCerts(pool UziCaPool) (*[]x509.Certificate, error) {
+func downloadUziPoolCerts(pool UziCaPool) ([]*x509.Certificate, error) {
 	allUrls := append(pool.rootCaUrls, pool.intermediateCaUrls...)
 	all, err := downloadCerts(allUrls)
 	if err != nil {
@@ -103,16 +103,16 @@ func downloadPool(urls []string) (*x509.CertPool, error) {
 	return roots, nil
 }
 
-func downloadCerts(urls []string) (*[]x509.Certificate, error) {
-	certs := make([]x509.Certificate, 0)
+func downloadCerts(urls []string) ([]*x509.Certificate, error) {
+	certs := make([]*x509.Certificate, 0)
 	for _, url := range urls {
 		certificate, err := readCertificateFromUrl(url)
 		if err != nil {
 			return nil, err
 		}
-		certs = append(certs, *certificate)
+		certs = append(certs, certificate)
 	}
-	return &certs, nil
+	return certs, nil
 }
 
 func readCertificateFromUrl(url string) (*x509.Certificate, error) {

@@ -14,7 +14,7 @@ func TestDefaultDidCreator_CreateDid(t *testing.T) {
 	type fields struct {
 	}
 	type args struct {
-		chain *[]x509.Certificate
+		chain []*x509.Certificate
 	}
 	chain, _, rootCert, _, _, err := x509_cert.BuildCertChain("A BIG STRING")
 	if err != nil {
@@ -35,22 +35,6 @@ func TestDefaultDidCreator_CreateDid(t *testing.T) {
 		errMsg string
 	}{
 		{
-			name:   "Test case 1",
-			fields: fields{},
-			args:   args{chain: &[]x509.Certificate{}},
-			want:   "",
-			errMsg: "no certificates provided",
-		},
-		{
-			name:   "Test case 2",
-			fields: fields{},
-			args: args{chain: &[]x509.Certificate{
-				{},
-			}},
-			want:   "",
-			errMsg: "no certificate found in the SAN attributes, please check if the certificate is an UZI Server Certificate",
-		},
-		{
 			name:   "Happy path",
 			fields: fields{},
 			args:   args{chain: chain},
@@ -61,7 +45,7 @@ func TestDefaultDidCreator_CreateDid(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			d := &DefaultDidProcessor{}
-			got, err := d.CreateDid(tt.args.chain)
+			got, err := d.CreateDid(tt.args.chain[0], tt.args.chain[len(tt.args.chain)-1])
 			wantErr := tt.errMsg != ""
 			if (err != nil) != wantErr {
 				t.Errorf("DefaultDidProcessor.CreateDid() error = %v, errMsg %v", err, tt.errMsg)

@@ -40,16 +40,54 @@ func (m *MockDidCreator) EXPECT() *MockDidCreatorMockRecorder {
 }
 
 // CreateDid mocks base method.
-func (m *MockDidCreator) CreateDid(chain *[]x509.Certificate) (string, error) {
+func (m *MockDidCreator) CreateDid(signingCert, caCert *x509.Certificate) (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateDid", chain)
+	ret := m.ctrl.Call(m, "CreateDid", signingCert, caCert)
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // CreateDid indicates an expected call of CreateDid.
-func (mr *MockDidCreatorMockRecorder) CreateDid(chain any) *gomock.Call {
+func (mr *MockDidCreatorMockRecorder) CreateDid(signingCert, caCert any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateDid", reflect.TypeOf((*MockDidCreator)(nil).CreateDid), chain)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateDid", reflect.TypeOf((*MockDidCreator)(nil).CreateDid), signingCert, caCert)
+}
+
+// MockDidParser is a mock of DidParser interface.
+type MockDidParser struct {
+	ctrl     *gomock.Controller
+	recorder *MockDidParserMockRecorder
+}
+
+// MockDidParserMockRecorder is the mock recorder for MockDidParser.
+type MockDidParserMockRecorder struct {
+	mock *MockDidParser
+}
+
+// NewMockDidParser creates a new mock instance.
+func NewMockDidParser(ctrl *gomock.Controller) *MockDidParser {
+	mock := &MockDidParser{ctrl: ctrl}
+	mock.recorder = &MockDidParserMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockDidParser) EXPECT() *MockDidParserMockRecorder {
+	return m.recorder
+}
+
+// ParseDid mocks base method.
+func (m *MockDidParser) ParseDid(did string) (*X509Did, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ParseDid", did)
+	ret0, _ := ret[0].(*X509Did)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ParseDid indicates an expected call of ParseDid.
+func (mr *MockDidParserMockRecorder) ParseDid(did any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ParseDid", reflect.TypeOf((*MockDidParser)(nil).ParseDid), did)
 }

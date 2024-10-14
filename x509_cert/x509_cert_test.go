@@ -93,12 +93,12 @@ func TestParseChain(t *testing.T) {
 
 	testCases := []struct {
 		name     string
-		derChain *[][]byte
+		derChain [][]byte
 		errMsg   string
 	}{
 		{
 			name:     "Valid Certificates",
-			derChain: &derChains,
+			derChain: derChains,
 		},
 		{
 			name:     "Nil ChainPem",
@@ -129,16 +129,16 @@ func TestParsePrivateKey(t *testing.T) {
 	pkcs1PrivateKey := x509.MarshalPKCS1PrivateKey(privateKey)
 	testCases := []struct {
 		name   string
-		der    *[]byte
+		der    []byte
 		errMsg string
 	}{
 		{
 			name: "ValidPrivateKey",
-			der:  &privateKeyBytes,
+			der:  privateKeyBytes,
 		},
 		{
 			name:   "InvalidPrivateKey",
-			der:    &pkcs1PrivateKey,
+			der:    pkcs1PrivateKey,
 			errMsg: "x509: failed to parse private key (use ParsePKCS1PrivateKey instead for this key format)",
 		},
 		{

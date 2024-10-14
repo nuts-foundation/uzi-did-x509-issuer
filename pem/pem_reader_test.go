@@ -80,9 +80,9 @@ func TestParseFileOrPath(t *testing.T) {
 		}
 		data, err := pemReader.ParseFileOrPath(file.Name(), pemType)
 		assert.NoError(t, err)
-		for i := 0; i < len(*data); i++ {
-			bytes := (*data)[i]
-			certificate := (*certs)[i]
+		for i := 0; i < len(data); i++ {
+			bytes := (data)[i]
+			certificate := (certs)[i]
 			ok := assert.Equal(t, bytes, certificate.Raw)
 			if !ok {
 				t.Fail()
@@ -116,14 +116,14 @@ func TestParseFileOrPath(t *testing.T) {
 		data, err := pemReader.ParseFileOrPath(tempDir, pemType)
 		assert.NoError(t, err)
 		dataMap := make(map[string][]byte)
-		for i := 0; i < len(*data); i++ {
-			bytes := (*data)[i]
+		for i := 0; i < len(data); i++ {
+			bytes := (data)[i]
 			hash, err := x509_cert.Hash(bytes, "sha512")
 			assert.NoError(t, err)
 			dataMap[base64.RawURLEncoding.EncodeToString(hash)] = bytes
 		}
-		for i := 0; i < len(*certs); i++ {
-			bytes := (*certs)[i].Raw
+		for i := 0; i < len(certs); i++ {
+			bytes := (certs)[i].Raw
 			hash, err := x509_cert.Hash(bytes, "sha512")
 			assert.NoError(t, err)
 			fileBytes := dataMap[base64.RawURLEncoding.EncodeToString(hash)]
