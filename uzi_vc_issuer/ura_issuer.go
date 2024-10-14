@@ -26,32 +26,15 @@ import (
 )
 import "github.com/nuts-foundation/go-did/vc"
 
-type UraIssuer interface {
-
-	// Issue generates a digital certificate from the given certificate file and signing key file for the subject.
-	Issue(certificateFile string, signingKeyFile string, subjectDID string, subjectName string) (string, error)
-}
-
 var RegexOtherNameValue = regexp.MustCompile(`2\.16\.528\.1\.1007.\d+\.\d+-\d+-\d+-S-(\d+)-00\.000-\d+`)
 
-// DefaultUraIssuer is responsible for building URA (UZI-register abonneenummer) Verifiable Credentials.
-// It utilizes a DidCreator to generate Decentralized Identifiers (DIDs) given a chain of x509 certificates.
-type DefaultUraIssuer struct {
-	chainParser x509_cert.ChainParser
-}
-
-// NewUraVcBuilder initializes and returns a new instance of DefaultUraIssuer with the provided DidCreator.
-func NewUraVcBuilder(chainParser x509_cert.ChainParser) *DefaultUraIssuer {
-	return &DefaultUraIssuer{chainParser}
-}
-
 // Issue generates a URA Verifiable Credential using provided certificate, signing key, subject DID, and subject name.
-func (u DefaultUraIssuer) Issue(certificateFile string, signingKeyFile string, subjectDID string, test bool) (string, error) {
+func Issue(certificateFile string, signingKeyFile string, subjectDID string, test bool) (string, error) {
 	certificate, err := pem2.ParseFileOrPath(certificateFile, "CERTIFICATE")
 	if err != nil {
 		return "", err
 	}
-	_certificates, err := u.chainParser.ParseCertificates(certificate)
+	_certificates, err := x509_cert.ParseCertificates(certificate)
 	if err != nil {
 		return "", err
 	}
@@ -83,17 +66,17 @@ func (u DefaultUraIssuer) Issue(certificateFile string, signingKeyFile string, s
 		err := fmt.Errorf("no signing keys found")
 		return "", err
 	}
-	privateKey, err := u.chainParser.ParsePrivateKey(signingKey)
+	privateKey, err := x509_cert.ParsePrivateKey(signingKey)
 	if err != nil {
 		return "", err
 	}
 
-	certChain, err := u.chainParser.ParseCertificates(chain)
+	certChain, err := x509_cert.ParseCertificates(chain)
 	if err != nil {
 		return "", err
 	}
 
-	credential, err := u.BuildUraVerifiableCredential(certChain, privateKey, subjectDID)
+	credential, err := BuildUraVerifiableCredential(certChain, privateKey, subjectDID)
 	if err != nil {
 		return "", err
 	}
@@ -113,7 +96,7 @@ func (u DefaultUraIssuer) Issue(certificateFile string, signingKeyFile string, s
 }
 
 // BuildUraVerifiableCredential constructs a verifiable credential with specified certificates, signing key, subject DID.
-func (v DefaultUraIssuer) BuildUraVerifiableCredential(certificates *[]x509.Certificate, signingKey *rsa.PrivateKey, subjectDID string) (*vc.VerifiableCredential, error) {
+func BuildUraVerifiableCredential(certificates *[]x509.Certificate, signingKey *rsa.PrivateKey, subjectDID string) (*vc.VerifiableCredential, error) {
 	signingCert, otherNameValue, err := x509_cert.FindSigningCertificate(certificates)
 	if err != nil {
 		return nil, err

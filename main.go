@@ -3,9 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/alecthomas/kong"
-	"headease-nuts-pki-overheid-issuer/did_x509"
 	"headease-nuts-pki-overheid-issuer/uzi_vc_issuer"
-	"headease-nuts-pki-overheid-issuer/x509_cert"
 	"os"
 )
 
@@ -41,8 +39,5 @@ func main() {
 }
 
 func issueVc(vc VC) (string, error) {
-	didCreator := did_x509.NewDidCreator()
-	chainParser := x509_cert.NewDefaultChainParser()
-	issuer := uzi_vc_issuer.NewUraVcBuilder(didCreator, chainParser)
-	return issuer.Issue(vc.CertificateFile, vc.SigningKey, vc.SubjectDID, vc.Test)
+	return uzi_vc_issuer.Issue(vc.CertificateFile, vc.SigningKey, vc.SubjectDID, vc.Test)
 }

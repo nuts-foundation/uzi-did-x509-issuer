@@ -42,26 +42,9 @@ func Hash(data []byte, alg string) ([]byte, error) {
 	return nil, fmt.Errorf("unsupported hash algorithm: %s", alg)
 }
 
-type ChainParser interface {
-
-	// ParseCertificates parses a chain of DER-encoded certificates into an array of x509.Certificate objects.
-	ParseCertificates(derChain *[][]byte) (*[]x509.Certificate, error)
-
-	// ParsePrivateKey parses a DER-encoded byte slice into an rsa.PrivateKey object, returning an error if parsing fails.
-	ParsePrivateKey(der *[]byte) (*rsa.PrivateKey, error)
-}
-
-// DefaultChainParser handles the parsing of certificate chains and private keys.
-type DefaultChainParser struct{}
-
-// NewDefaultChainParser creates a new instance of DefaultChainParser.
-func NewDefaultChainParser() *DefaultChainParser {
-	return &DefaultChainParser{}
-}
-
 // ParseCertificates parses a slice of DER-encoded byte arrays into a slice of x509.Certificate.
 // It returns an error if any of the certificates cannot be parsed.
-func (c DefaultChainParser) ParseCertificates(derChain *[][]byte) (*[]x509.Certificate, error) {
+func ParseCertificates(derChain *[][]byte) (*[]x509.Certificate, error) {
 	if derChain == nil {
 		return nil, fmt.Errorf("derChain is nil")
 	}
@@ -80,7 +63,7 @@ func (c DefaultChainParser) ParseCertificates(derChain *[][]byte) (*[]x509.Certi
 
 // ParsePrivateKey parses a DER-encoded private key into an *rsa.PrivateKey.
 // It returns an error if the key is not in PKCS8 format or not an RSA key.
-func (c DefaultChainParser) ParsePrivateKey(der *[]byte) (*rsa.PrivateKey, error) {
+func ParsePrivateKey(der *[]byte) (*rsa.PrivateKey, error) {
 	if der == nil {
 		return nil, fmt.Errorf("der is nil")
 	}
