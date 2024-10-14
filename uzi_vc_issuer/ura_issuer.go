@@ -184,15 +184,17 @@ func (v DefaultUraIssuer) BuildUraVerifiableCredential(certificates *[]x509.Cert
 // marshalChain converts a slice of x509.Certificate instances to a cert.Chain, encoding each certificate as PEM.
 // It returns the PEM-encoded cert.Chain and an error if the encoding or header fixation fails.
 func marshalChain(certificates *[]x509.Certificate) (*cert.Chain, error) {
-	chainPems := &cert.Chain{}
-	for _, certificate := range *certificates {
-		err := chainPems.Add(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certificate.Raw}))
+	rv := &cert.Chain{}
+	certs := *certificates
+	for i, _ := range certs {
+		certificate := certs[len(certs)-i-1]
+		err := rv.Add(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certificate.Raw}))
 		if err != nil {
 			return nil, err
 		}
 	}
-	headers, err := x509_cert.FixChainHeaders(chainPems)
-	return headers, err
+	rv, err := x509_cert.FixChainHeaders(rv)
+	return rv, err
 }
 
 func validateChain(certificates *[]x509.Certificate) error {
