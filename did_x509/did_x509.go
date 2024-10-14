@@ -21,9 +21,9 @@ type X509Did struct {
 
 // FormatDid constructs a decentralized identifier (DID) from a certificate chain and an optional policy.
 // It returns the formatted DID string or an error if the root certificate or hash calculation fails.
-func FormatDid(ca *x509.Certificate, policy string) (string, error) {
+func FormatDid(caCert *x509.Certificate, policy string) (string, error) {
 	alg := "sha512"
-	rootHash, err := x509_cert.Hash(ca.Raw, alg)
+	rootHash, err := x509_cert.Hash(caCert.Raw, alg)
 	if err != nil {
 		return "", err
 	}
@@ -77,7 +77,7 @@ func CreatePolicy(otherNameValue string, sanType x509_cert.SanTypeName) string {
 // FindRootCertificate traverses a chain of x509 certificates and returns the first certificate that is a CA.
 func FindRootCertificate(chain []*x509.Certificate) (*x509.Certificate, error) {
 	for _, cert := range chain {
-		if cert.IsCA {
+		if x509_cert.IsRootCa(cert) {
 			return cert, nil
 		}
 	}
