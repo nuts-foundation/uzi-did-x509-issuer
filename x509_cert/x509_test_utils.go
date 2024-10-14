@@ -45,7 +45,7 @@ func BuildCertChain(identifier string) ([]*x509.Certificate, *cert.Chain, *x509.
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
-	rootCertTmpl, err := CertTemplate(nil)
+	rootCertTmpl, err := CertTemplate(nil, "Root CA")
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
@@ -61,7 +61,7 @@ func BuildCertChain(identifier string) ([]*x509.Certificate, *cert.Chain, *x509.
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
-	intermediateL1Tmpl, err := CertTemplate(nil)
+	intermediateL1Tmpl, err := CertTemplate(nil, "Intermediate CA Level 1")
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
@@ -76,7 +76,7 @@ func BuildCertChain(identifier string) ([]*x509.Certificate, *cert.Chain, *x509.
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
-	intermediateL2Tmpl, err := CertTemplate(nil)
+	intermediateL2Tmpl, err := CertTemplate(nil, "Intermediate CA Level 2")
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
@@ -126,7 +126,7 @@ func BuildCertChain(identifier string) ([]*x509.Certificate, *cert.Chain, *x509.
 
 // CertTemplate generates a template for a x509 certificate with a given serial number. If no serial number is provided, a random one is generated.
 // The certificate is valid for one month and uses SHA256 with RSA for the signature algorithm.
-func CertTemplate(serialNumber *big.Int) (*x509.Certificate, error) {
+func CertTemplate(serialNumber *big.Int, organization string) (*x509.Certificate, error) {
 	// generate a random serial number (a real cert authority would have some logic behind this)
 	if serialNumber == nil {
 		serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 8)
@@ -135,7 +135,7 @@ func CertTemplate(serialNumber *big.Int) (*x509.Certificate, error) {
 	tmpl := x509.Certificate{
 		IsCA:                  true,
 		SerialNumber:          serialNumber,
-		Subject:               pkix.Name{Organization: []string{"JaegerTracing"}},
+		Subject:               pkix.Name{Organization: []string{organization}},
 		SignatureAlgorithm:    x509.SHA256WithRSA,
 		NotBefore:             time.Now(),
 		NotAfter:              time.Now().Add(time.Hour * 24 * 30), // valid for a month
@@ -180,11 +180,11 @@ func SigningCertTemplate(serialNumber *big.Int, identifier string) (*x509.Certif
 
 	tmpl := x509.Certificate{
 		SerialNumber:          serialNumber,
-		Subject:               pkix.Name{Organization: []string{"JaegerTracing"}},
+		Subject:               pkix.Name{Organization: []string{"FauxCare"}},
 		SignatureAlgorithm:    x509.SHA256WithRSA,
 		NotBefore:             time.Now(),
 		NotAfter:              time.Now().Add(time.Hour * 24 * 30), // valid for a month
-		EmailAddresses:        []string{"roland@edia.nl"},
+		EmailAddresses:        []string{"roland@headease.nl"},
 		BasicConstraintsValid: true,
 		ExtraExtensions: []pkix.Extension{
 			{
