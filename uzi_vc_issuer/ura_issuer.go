@@ -47,8 +47,7 @@ func NewUraVcBuilder(chainParser x509_cert.ChainParser) *DefaultUraIssuer {
 
 // Issue generates a URA Verifiable Credential using provided certificate, signing key, subject DID, and subject name.
 func (u DefaultUraIssuer) Issue(certificateFile string, signingKeyFile string, subjectDID string, test bool) (string, error) {
-	reader := pem2.NewPemReader()
-	certificate, err := reader.ParseFileOrPath(certificateFile, "CERTIFICATE")
+	certificate, err := pem2.ParseFileOrPath(certificateFile, "CERTIFICATE")
 	if err != nil {
 		return "", err
 	}
@@ -68,7 +67,7 @@ func (u DefaultUraIssuer) Issue(certificateFile string, signingKeyFile string, s
 	_chain := append(*chain, *certificate...)
 	chain = &_chain
 
-	signingKeys, err := reader.ParseFileOrPath(signingKeyFile, "PRIVATE KEY")
+	signingKeys, err := pem2.ParseFileOrPath(signingKeyFile, "PRIVATE KEY")
 	if err != nil {
 		return "", err
 	}
