@@ -37,7 +37,6 @@ func FindOtherName(certificate *x509.Certificate) (string, SanTypeName, error) {
 func findOtherNameValue(cert *x509.Certificate) (string, error) {
 	value := ""
 	for _, extension := range cert.Extensions {
-		fmt.Println("extension.Id: ", extension.Id)
 		if extension.Id.Equal(SubjectAlternativeNameType) {
 			err := forEachSAN(extension.Value, func(tag int, data []byte) error {
 				if tag != 0 {
@@ -48,7 +47,6 @@ func findOtherNameValue(cert *x509.Certificate) (string, error) {
 				if err != nil {
 					return fmt.Errorf("could not parse requested other SAN: %v", err)
 				}
-				fmt.Println("other.TypeID: ", other.TypeID, OtherNameType)
 				if other.TypeID.Equal(OtherNameType) {
 					_, err = asn1.Unmarshal(other.Value.Bytes, &value)
 					if err != nil {
