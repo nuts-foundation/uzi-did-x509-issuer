@@ -22,8 +22,7 @@ type UraValidator interface {
 }
 
 type UraValidatorImpl struct {
-	didParser did_x509.DidParser
-	test      bool
+	test bool
 }
 
 type JwtHeaderValues struct {
@@ -39,7 +38,7 @@ func (u UraValidatorImpl) Validate(jwtString string) error {
 	if err != nil {
 		return err
 	}
-	parseDid, err := u.didParser.ParseDid(credential.Issuer.String())
+	parseDid, err := did_x509.ParseDid(credential.Issuer.String())
 	if err != nil {
 		return err
 	}
@@ -174,6 +173,6 @@ func parseJwtHeaderValues(jwtString string) (*JwtHeaderValues, error) {
 	return metadata, nil
 }
 
-func NewUraValidator(didParser did_x509.DidParser, test bool) *UraValidatorImpl {
-	return &UraValidatorImpl{didParser, test}
+func NewUraValidator(test bool) *UraValidatorImpl {
+	return &UraValidatorImpl{test}
 }
