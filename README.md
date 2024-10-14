@@ -1,11 +1,12 @@
-[![Maintainability](https://api.codeclimate.com/v1/badges/f92496250890e40900aa/maintainability)](https://codeclimate.com/github/nuts-foundation/uzi-did-x509-issuer/maintainability)
-
 # Nuts UZI Server Certificaat Issuer
 
-< 8 nov 2023
+[![Maintainability](https://api.codeclimate.com/v1/badges/f92496250890e40900aa/maintainability)](https://codeclimate.com/github/nuts-foundation/uzi-did-x509-issuer/maintainability)
+[![Test Coverage](https://api.codeclimate.com/v1/badges/f92496250890e40900aa/test_coverage)](https://codeclimate.com/github/nuts-foundation/uzi-did-x509-issuer/test_coverage)
+
+> [!CAUTION]
+> This repository contains experimental code and is not suitable for production usage!
 
 ## Description
-
 The UZI Server Certificaat Issuer is a Go-based tool designed for issuing Verifiable Credentials signed by a UZI Server Certificaat. The issuer creates a did:x509 based on the PKI certificate chain.
 
 ## Features
