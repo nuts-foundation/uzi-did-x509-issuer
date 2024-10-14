@@ -33,24 +33,19 @@ import (
 var RegexOtherNameValue = regexp.MustCompile(`\d+-\d+-S-(\d+)-00\.000-\d+`)
 
 // Issue generates a URA Verifiable Credential using provided certificate, signing key, subject DID, and subject name.
-func Issue(certificateFile string, signingKeyFile string, subjectDID string, test bool) (string, error) {
+func Issue(certificateFile string, signingKeyFile string, subjectDID string, allowTestUraCa bool) (string, error) {
 	pemBlocks, err := pem2.ParseFileOrPath(certificateFile, "CERTIFICATE")
 	if err != nil {
 		return "", err
 	}
-
+	allowSelfSignedCa := len(pemBlocks) > 1
 	if len(pemBlocks) == 1 {
-		if !test {
-			err = fmt.Errorf("did not find exactly one certificate in file %s", certificateFile)
+		certificate := pemBlocks[0]
+		pemBlocks, err = ca_certs.GetDERs(allowTestUraCa)
+		if err != nil {
 			return "", err
-		} else {
-			certificate := pemBlocks[0]
-			pemBlocks, err = ca_certs.GetDERs(test)
-			if err != nil {
-				return "", err
-			}
-			pemBlocks = append(pemBlocks, certificate)
 		}
+		pemBlocks = append(pemBlocks, certificate)
 	}
 
 	signingKeys, err := pem2.ParseFileOrPath(signingKeyFile, "PRIVATE KEY")
@@ -86,7 +81,7 @@ func Issue(certificateFile string, signingKeyFile string, subjectDID string, tes
 	if err != nil {
 		return "", err
 	}
-	validator := uzi_vc_validator.NewUraValidator(test)
+	validator := uzi_vc_validator.NewUraValidator(allowTestUraCa, allowSelfSignedCa)
 	jwtString := string(credentialJSON)
 	jwtString = jwtString[1:]                // Chop start
 	jwtString = jwtString[:len(jwtString)-1] // Chop end

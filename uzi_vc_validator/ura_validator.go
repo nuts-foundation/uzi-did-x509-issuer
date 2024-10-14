@@ -22,7 +22,12 @@ type UraValidator interface {
 }
 
 type UraValidatorImpl struct {
-	test bool
+	allowUziTestCa    bool
+	allowSelfSignedCa bool
+}
+
+func NewUraValidator(allowUziTestCa bool, allowSelfSignedCa bool) *UraValidatorImpl {
+	return &UraValidatorImpl{allowUziTestCa, allowSelfSignedCa}
 }
 
 type JwtHeaderValues struct {
@@ -58,7 +63,7 @@ func (u UraValidatorImpl) Validate(jwtString string) error {
 	// 	return err
 	// }
 
-	err = validateChain(chainCertificates, u.test)
+	err = validateChain(signingCert, chainCertificates, u.allowUziTestCa, u.allowSelfSignedCa)
 	if err != nil {
 		return err
 	}
@@ -87,37 +92,26 @@ func (u UraValidatorImpl) Validate(jwtString string) error {
 }
 
 // func validateChain(signingCert *x509.Certificate, certificates []*x509.Certificate, includeTest bool) error {
-func validateChain(chain []*x509.Certificate, testChain bool) error {
+func validateChain(signingCert *x509.Certificate, chain []*x509.Certificate, allowUziTestCa bool, allowSelfSignedCa bool) error {
 
 	roots := x509.NewCertPool()
 	intermediates := x509.NewCertPool()
 	var err error
 
-	if testChain {
+	if allowSelfSignedCa {
 		roots.AddCert(chain[len(chain)-1])
 		for i := 1; i < len(chain)-1; i++ {
 			intermediates.AddCert(chain[i])
 		}
 	} else {
-		roots, intermediates, err = ca_certs.GetCertPools(testChain)
+		roots, intermediates, err = ca_certs.GetCertPools(allowUziTestCa)
 		if err != nil {
 			return err
 		}
 	}
-
-	// // First validate against the own provided pool
-	// err = validate(signingCert, roots, intermediates)
-	// if err != nil {
-	// 	err = fmt.Errorf("could not validate against own provided pool: %s", err.Error())
-	// 	return err
-	// }
-	// root, intermediates, err := ca_certs.GetCertPools(includeTest)
-	// if err != nil {
-	// 	return err
-	// }
-	err = validate(chain[0], roots, intermediates)
+	err = validate(signingCert, roots, intermediates)
 	if err != nil {
-		err = fmt.Errorf("could not validate against the CA pool from zorgcsp (includeTest=%v): %s", testChain, err.Error())
+		err = fmt.Errorf("could not validate against the CA pool. %s", err.Error())
 		return err
 	}
 	return nil
@@ -180,8 +174,4 @@ func parseJwtHeaderValues(jwtString string) (*JwtHeaderValues, error) {
 		metadata.Algorithm = headers.Algorithm()
 	}
 	return metadata, nil
-}
-
-func NewUraValidator(test bool) *UraValidatorImpl {
-	return &UraValidatorImpl{test}
 }
