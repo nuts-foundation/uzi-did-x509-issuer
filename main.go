@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 	"github.com/alecthomas/kong"
-	"headease-nuts-pki-overheid-issuer/did_x509"
-	"headease-nuts-pki-overheid-issuer/uzi_vc_issuer"
-	"headease-nuts-pki-overheid-issuer/x509_cert"
+	"github.com/nuts-foundation/uzi-did-x509-issuer/did_x509"
+	"github.com/nuts-foundation/uzi-did-x509-issuer/uzi_vc_issuer"
+	"github.com/nuts-foundation/uzi-did-x509-issuer/x509_cert"
 	"os"
 )
 

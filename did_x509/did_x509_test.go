@@ -3,7 +3,7 @@ package did_x509
 import (
 	"crypto/x509"
 	"encoding/base64"
-	"headease-nuts-pki-overheid-issuer/x509_cert"
+	"github.com/nuts-foundation/uzi-did-x509-issuer/x509_cert"
 	"strings"
 	"testing"
 )

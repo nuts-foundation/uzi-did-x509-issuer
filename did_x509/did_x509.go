@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
-	"headease-nuts-pki-overheid-issuer/x509_cert"
+	"github.com/nuts-foundation/uzi-did-x509-issuer/x509_cert"
 	"regexp"
 	"strings"
 )

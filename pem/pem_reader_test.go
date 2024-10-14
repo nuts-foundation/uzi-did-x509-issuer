@@ -2,8 +2,8 @@ package pem
 
 import (
 	"encoding/base64"
+	"github.com/nuts-foundation/uzi-did-x509-issuer/x509_cert"
 	"github.com/stretchr/testify/assert"
-	"headease-nuts-pki-overheid-issuer/x509_cert"
 	"log"
 	"os"
 	"strings"

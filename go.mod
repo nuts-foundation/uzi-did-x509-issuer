@@ -1,4 +1,4 @@
-module headease-nuts-pki-overheid-issuer
+module github.com/nuts-foundation/uzi-did-x509-issuer
 
 go 1.23.1
 

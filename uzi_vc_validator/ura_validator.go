@@ -11,10 +11,10 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jws"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/vc"
-	"headease-nuts-pki-overheid-issuer/ca_certs"
-	"headease-nuts-pki-overheid-issuer/did_x509"
-	pem2 "headease-nuts-pki-overheid-issuer/pem"
-	"headease-nuts-pki-overheid-issuer/x509_cert"
+	"github.com/nuts-foundation/uzi-did-x509-issuer/ca_certs"
+	"github.com/nuts-foundation/uzi-did-x509-issuer/did_x509"
+	pem2 "github.com/nuts-foundation/uzi-did-x509-issuer/pem"
+	"github.com/nuts-foundation/uzi-did-x509-issuer/x509_cert"
 )
 
 type UraValidator interface {
