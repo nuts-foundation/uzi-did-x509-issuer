@@ -57,11 +57,10 @@ func (u UraValidatorImpl) Validate(jwtString string) error {
 		return err
 	}
 
-	// signingCert, err := findSigningCertificate(chainCertificates, headerValues.X509CertThumbprint)
-	signingCert := chainCertificates[0]
-	// if err != nil {
-	// 	return err
-	// }
+	signingCert, err := findSigningCertificate(chainCertificates, headerValues.X509CertThumbprint)
+	if err != nil {
+		return err
+	}
 
 	err = validateChain(signingCert, chainCertificates, u.allowUziTestCa, u.allowSelfSignedCa)
 	if err != nil {
