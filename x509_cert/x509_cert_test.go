@@ -74,8 +74,6 @@ func TestHash(t *testing.T) {
 	}
 }
 func TestParseChain(t *testing.T) {
-	parser := NewDefaultChainParser()
-
 	_, chainPem, _, _, _, err := BuildCertChain("9907878")
 	assert.NoError(t, err)
 	derChains := make([][]byte, chainPem.Len())
@@ -109,7 +107,7 @@ func TestParseChain(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := parser.ParseCertificates(tc.derChain)
+			_, err := ParseCertificates(tc.derChain)
 			if err != nil {
 				if err.Error() != tc.errMsg {
 					t.Errorf("got error %v, want %v", err, tc.errMsg)
@@ -120,7 +118,6 @@ func TestParseChain(t *testing.T) {
 }
 
 func TestParsePrivateKey(t *testing.T) {
-	parser := NewDefaultChainParser()
 	_, _, _, privateKey, _, err := BuildCertChain("9907878")
 	assert.NoError(t, err)
 	privateKeyBytes, err := x509.MarshalPKCS8PrivateKey(privateKey)
@@ -150,7 +147,7 @@ func TestParsePrivateKey(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := parser.ParsePrivateKey(tc.der)
+			_, err := ParsePrivateKey(tc.der)
 			if err != nil {
 				if err.Error() != tc.errMsg {
 					t.Errorf("got error %v, want %v", err, tc.errMsg)

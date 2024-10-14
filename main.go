@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"github.com/alecthomas/kong"
-	"github.com/nuts-foundation/uzi-did-x509-issuer/did_x509"
 	"github.com/nuts-foundation/uzi-did-x509-issuer/uzi_vc_issuer"
 	"github.com/nuts-foundation/uzi-did-x509-issuer/x509_cert"
 	"os"
@@ -80,8 +79,5 @@ func main() {
 }
 
 func issueVc(vc VC) (string, error) {
-	didCreator := did_x509.NewDidCreator()
-	chainParser := x509_cert.NewDefaultChainParser()
-	issuer := uzi_vc_issuer.NewUraVcBuilder(didCreator, chainParser)
-	return issuer.Issue(vc.CertificateFile, vc.SigningKey, vc.SubjectDID, vc.Test)
+	return uzi_vc_issuer.Issue(vc.CertificateFile, vc.SigningKey, vc.SubjectDID, vc.Test)
 }

@@ -21,15 +21,13 @@ func TestParseFileOrPath(t *testing.T) {
 	pemType := "CERTIFICATE"
 
 	t.Run("FileExistsAndIsNotDirectory", func(t *testing.T) {
-		pemReader := NewPemReader()
-		result, err := pemReader.ParseFileOrPath(tempFile.Name(), pemType)
+		result, err := ParseFileOrPath(tempFile.Name(), pemType)
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 	})
 
 	t.Run("FileDoesNotExist", func(t *testing.T) {
-		pemReader := NewPemReader()
-		_, err := pemReader.ParseFileOrPath("nonexistent", pemType)
+		_, err := ParseFileOrPath("nonexistent", pemType)
 		assert.Error(t, err)
 	})
 
@@ -42,18 +40,15 @@ func TestParseFileOrPath(t *testing.T) {
 	}(tempDir)
 
 	t.Run("PathIsDirectory", func(t *testing.T) {
-		pemReader := NewPemReader()
-		_, err := pemReader.ParseFileOrPath(tempDir, pemType)
+		_, err := ParseFileOrPath(tempDir, pemType)
 		assert.NoError(t, err)
 	})
 
 	t.Run("PathDoesNotExist", func(t *testing.T) {
-		pemReader := NewPemReader()
-		_, err := pemReader.ParseFileOrPath("nonexistent/path", pemType)
+		_, err := ParseFileOrPath("nonexistent/path", pemType)
 		assert.Error(t, err)
 	})
 	t.Run("Happy flow single file", func(t *testing.T) {
-		pemReader := NewPemReader()
 		file, err := os.CreateTemp(tempDir, "prefix")
 		if err != nil {
 			t.Fatal(err)
@@ -78,7 +73,7 @@ func TestParseFileOrPath(t *testing.T) {
 				t.Fail()
 			}
 		}
-		data, err := pemReader.ParseFileOrPath(file.Name(), pemType)
+		data, err := ParseFileOrPath(file.Name(), pemType)
 		assert.NoError(t, err)
 		for i := 0; i < len(data); i++ {
 			bytes := (data)[i]
@@ -91,7 +86,6 @@ func TestParseFileOrPath(t *testing.T) {
 
 	})
 	t.Run("Happy flow directory", func(t *testing.T) {
-		pemReader := NewPemReader()
 		certs, chainPem, _, _, _, err := x509_cert.BuildCertChain("A BIG STRING")
 		assert.NoError(t, err)
 		tempDir, _ := os.MkdirTemp("", "example")
@@ -113,7 +107,7 @@ func TestParseFileOrPath(t *testing.T) {
 				t.Fail()
 			}
 		}
-		data, err := pemReader.ParseFileOrPath(tempDir, pemType)
+		data, err := ParseFileOrPath(tempDir, pemType)
 		assert.NoError(t, err)
 		dataMap := make(map[string][]byte)
 		for i := 0; i < len(data); i++ {

@@ -16,7 +16,7 @@ func TestDefaultDidCreator_CreateDid(t *testing.T) {
 	type args struct {
 		chain []*x509.Certificate
 	}
-	chain, _, rootCert, _, _, err := x509_cert.BuildCertChain("A BIG STRING")
+	chain, _, rootCert, _, _, err := x509_cert.BuildCertChain("A_BIG_STRING")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,14 +38,13 @@ func TestDefaultDidCreator_CreateDid(t *testing.T) {
 			name:   "Happy path",
 			fields: fields{},
 			args:   args{chain: chain},
-			want:   strings.Join([]string{"did", "x509", "0", alg, rootHashString, "", "san", "otherName", "A BIG STRING"}, ":"),
+			want:   strings.Join([]string{"did", "x509", "0", alg, rootHashString, "", "san", "otherName", "A_BIG_STRING"}, ":"),
 			errMsg: "",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			d := &DefaultDidProcessor{}
-			got, err := d.CreateDid(tt.args.chain[0], tt.args.chain[len(tt.args.chain)-1])
+			got, err := CreateDid(tt.args.chain[0], tt.args.chain[len(tt.args.chain)-1])
 			wantErr := tt.errMsg != ""
 			if (err != nil) != wantErr {
 				t.Errorf("DefaultDidProcessor.CreateDid() error = %v, errMsg %v", err, tt.errMsg)
@@ -58,6 +57,68 @@ func TestDefaultDidCreator_CreateDid(t *testing.T) {
 
 			if got != tt.want {
 				t.Errorf("DefaultDidProcessor.CreateDid() = \n%v\n, want: \n%v\n", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestDefaultDidCreator_ParseDid tests the ParseDid function of DefaultDidProcessor by providing different DID strings.
+// It checks for correct X509Did parsing and appropriate error messages.
+func TestDefaultDidCreator_ParseDid(t *testing.T) {
+	type fields struct {
+	}
+	type args struct {
+		didString string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   *X509Did
+		errMsg string
+	}{
+		{
+			name:   "Invalid DID method",
+			fields: fields{},
+			args:   args{didString: "did:abc:0:sha512:hash::san:otherName:A_BIG_STRING"},
+			want:   nil,
+			errMsg: "invalid didString method",
+		},
+		{
+			name:   "Invalid DID format",
+			fields: fields{},
+			args:   args{didString: "did:x509:0:sha512::san:otherName:A_BIG_STRING"},
+			want:   nil,
+			errMsg: "invalid didString format, expected didString:x509:0:alg:hash::san:type:ura",
+		},
+		{
+			name:   "Happy path",
+			fields: fields{},
+			args:   args{didString: "did:x509:0:sha512:hash::san:otherName:A_BIG_STRING"},
+			want:   &X509Did{Version: "0", RootCertificateHashAlg: "sha512", RootCertificateHash: "hash", SanType: "otherName", Ura: "A_BIG_STRING"},
+			errMsg: "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ParseDid(tt.args.didString)
+			wantErr := tt.errMsg != ""
+			if (err != nil) != wantErr {
+				t.Errorf("DefaultDidProcessor.ParseDid() error = %v, expected error = %v", err, tt.errMsg)
+				return
+			} else if wantErr {
+				if err.Error() != tt.errMsg {
+					t.Errorf("DefaultDidProcessor.ParseDid() expected = \"%v\", got = \"%v\"", tt.errMsg, err.Error())
+				}
+			}
+
+			if tt.want != nil && got != nil &&
+				(tt.want.Version != got.Version ||
+					tt.want.RootCertificateHashAlg != got.RootCertificateHashAlg ||
+					tt.want.RootCertificateHash != got.RootCertificateHash ||
+					tt.want.SanType != got.SanType ||
+					tt.want.Ura != got.Ura) {
+				t.Errorf("DefaultDidProcessor.ParseDid() = %v, want = %v", got, tt.want)
 			}
 		})
 	}

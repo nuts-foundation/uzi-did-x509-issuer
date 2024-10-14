@@ -19,28 +19,6 @@ type X509Did struct {
 	SanType                x509_cert.SanTypeName
 }
 
-// DidCreator is an interface for creating a DID (Decentralized Identifier) given a chain of x509 certificates.
-// The CreateDid method takes a slice of x509.Certificate and returns a DID as a string and an error if any.
-type DidCreator interface {
-	CreateDid(signingCert, caCert *x509.Certificate) (string, error)
-}
-
-type DidParser interface {
-	ParseDid(did string) (*X509Did, error)
-}
-
-// DefaultDidProcessor is responsible for creating Decentralized Identifiers (DIDs) based on certificate chain information.
-type DefaultDidProcessor struct {
-}
-
-// NewDidCreator initializes and returns a new instance of DefaultDidProcessor.
-func NewDidCreator() *DefaultDidProcessor {
-	return &DefaultDidProcessor{}
-}
-func NewDidParser() *DefaultDidProcessor {
-	return &DefaultDidProcessor{}
-}
-
 // FormatDid constructs a decentralized identifier (DID) from a certificate chain and an optional policy.
 // It returns the formatted DID string or an error if the root certificate or hash calculation fails.
 func FormatDid(ca *x509.Certificate, policy string) (string, error) {
@@ -60,7 +38,7 @@ func FormatDid(ca *x509.Certificate, policy string) (string, error) {
 // CreateDid generates a Decentralized Identifier (DID) from a given certificate chain.
 // It extracts the Unique Registration Address (URA) from the chain, creates a policy with it, and formats the DID.
 // Returns the generated DID or an error if any step fails.
-func (d *DefaultDidProcessor) CreateDid(signingCert, caCert *x509.Certificate) (string, error) {
+func CreateDid(signingCert, caCert *x509.Certificate) (string, error) {
 	otherNameValue, sanType, err := x509_cert.FindOtherName(signingCert)
 	if err != nil {
 		return "", err
@@ -69,7 +47,7 @@ func (d *DefaultDidProcessor) CreateDid(signingCert, caCert *x509.Certificate) (
 	formattedDid, err := FormatDid(caCert, policy)
 	return formattedDid, err
 }
-func (d *DefaultDidProcessor) ParseDid(didString string) (*X509Did, error) {
+func ParseDid(didString string) (*X509Did, error) {
 	x509Did := X509Did{}
 	didObj := did.MustParseDID(didString)
 	if didObj.Method != "x509" {

@@ -27,33 +27,14 @@ import (
 	"github.com/nuts-foundation/uzi-did-x509-issuer/x509_cert"
 )
 
-type UraIssuer interface {
-
-	// Issue generates a digital certificate from the given certificate file and signing key file for the subject.
-	Issue(certificateFile string, signingKeyFile string, subjectDID string, subjectName string) (string, error)
-}
-
 // RegexOtherNameValue matches thee OtherName field: <versie-nr>-<UZI-nr>-<pastype>-<Abonnee-nr>-<rol>-<AGB-code>
 // e.g.: 1-123456789-S-88888801-00.000-12345678
 // var RegexOtherNameValue = regexp.MustCompile(`2\.16\.528\.1\.1007.\d+\.\d+-\d+-\d+-S-(\d+)-00\.000-\d+`)
 var RegexOtherNameValue = regexp.MustCompile(`\d+-\d+-S-(\d+)-00\.000-\d+`)
 
-// DefaultUraIssuer is responsible for building URA (UZI-register abonneenummer) Verifiable Credentials.
-// It utilizes a DidCreator to generate Decentralized Identifiers (DIDs) given a chain of x509 certificates.
-type DefaultUraIssuer struct {
-	didCreator  did_x509.DidCreator
-	chainParser x509_cert.ChainParser
-}
-
-// NewUraVcBuilder initializes and returns a new instance of DefaultUraIssuer with the provided DidCreator.
-func NewUraVcBuilder(didCreator did_x509.DidCreator, chainParser x509_cert.ChainParser) *DefaultUraIssuer {
-	return &DefaultUraIssuer{didCreator, chainParser}
-}
-
 // Issue generates a URA Verifiable Credential using provided certificate, signing key, subject DID, and subject name.
-func (u DefaultUraIssuer) Issue(certificateFile string, signingKeyFile string, subjectDID string, test bool) (string, error) {
-	pemReader := pem2.NewPemReader()
-	pemBlocks, err := pemReader.ParseFileOrPath(certificateFile, "CERTIFICATE")
+func Issue(certificateFile string, signingKeyFile string, subjectDID string, test bool) (string, error) {
+	pemBlocks, err := pem2.ParseFileOrPath(certificateFile, "CERTIFICATE")
 	if err != nil {
 		return "", err
 	}
@@ -72,7 +53,7 @@ func (u DefaultUraIssuer) Issue(certificateFile string, signingKeyFile string, s
 		}
 	}
 
-	signingKeys, err := pemReader.ParseFileOrPath(signingKeyFile, "PRIVATE KEY")
+	signingKeys, err := pem2.ParseFileOrPath(signingKeyFile, "PRIVATE KEY")
 	if err != nil {
 		return "", err
 	}
@@ -80,12 +61,12 @@ func (u DefaultUraIssuer) Issue(certificateFile string, signingKeyFile string, s
 		err := fmt.Errorf("no signing keys found")
 		return "", err
 	}
-	privateKey, err := u.chainParser.ParsePrivateKey(signingKeys[0])
+	privateKey, err := x509_cert.ParsePrivateKey(signingKeys[0])
 	if err != nil {
 		return "", err
 	}
 
-	certs, err := u.chainParser.ParseCertificates(pemBlocks)
+	certs, err := x509_cert.ParseCertificates(pemBlocks)
 	if err != nil {
 		return "", err
 	}
@@ -97,7 +78,7 @@ func (u DefaultUraIssuer) Issue(certificateFile string, signingKeyFile string, s
 		return "", err
 	}
 
-	credential, err := u.BuildUraVerifiableCredential(chain, privateKey, subjectDID)
+	credential, err := BuildUraVerifiableCredential(chain, privateKey, subjectDID)
 	if err != nil {
 		return "", err
 	}
@@ -105,7 +86,7 @@ func (u DefaultUraIssuer) Issue(certificateFile string, signingKeyFile string, s
 	if err != nil {
 		return "", err
 	}
-	validator := uzi_vc_validator.NewUraValidator(did_x509.NewDidParser(), test)
+	validator := uzi_vc_validator.NewUraValidator(test)
 	jwtString := string(credentialJSON)
 	jwtString = jwtString[1:]                // Chop start
 	jwtString = jwtString[:len(jwtString)-1] // Chop end
@@ -117,11 +98,11 @@ func (u DefaultUraIssuer) Issue(certificateFile string, signingKeyFile string, s
 }
 
 // BuildUraVerifiableCredential constructs a verifiable credential with specified certificates, signing key, subject DID.
-func (v DefaultUraIssuer) BuildUraVerifiableCredential(chain []*x509.Certificate, signingKey *rsa.PrivateKey, subjectDID string) (*vc.VerifiableCredential, error) {
+func BuildUraVerifiableCredential(chain []*x509.Certificate, signingKey *rsa.PrivateKey, subjectDID string) (*vc.VerifiableCredential, error) {
 	if len(chain) == 0 {
 		return nil, errors.New("empty certificate chain")
 	}
-	did, err := v.didCreator.CreateDid(chain[0], chain[len(chain)-1])
+	did, err := did_x509.CreateDid(chain[0], chain[len(chain)-1])
 	if err != nil {
 		return nil, err
 	}
