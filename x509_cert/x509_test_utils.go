@@ -231,6 +231,7 @@ func CreateCert(template, parent *x509.Certificate, pub interface{}, parentPriv 
 }
 
 // DebugUnmarshall recursively unmarshalls ASN.1 encoded data and prints the structure with parsed values.
+// Keep this method for debug purposes in the future.
 func DebugUnmarshall(data []byte, depth int) error {
 	for len(data) > 0 {
 		var x asn1.RawValue
