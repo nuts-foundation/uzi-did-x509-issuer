@@ -31,8 +31,8 @@ func EncodeRSAPrivateKey(key *rsa.PrivateKey) ([]byte, error) {
 
 func EncodeCertificates(certs ...*x509.Certificate) ([]byte, error) {
 	b := bytes.Buffer{}
-	for _, cert := range certs {
-		if err := pem.Encode(&b, &pem.Block{Type: CertificateBlockType, Bytes: cert.Raw}); err != nil {
+	for _, c := range certs {
+		if err := pem.Encode(&b, &pem.Block{Type: CertificateBlockType, Bytes: c.Raw}); err != nil {
 			return []byte{}, err
 		}
 	}
