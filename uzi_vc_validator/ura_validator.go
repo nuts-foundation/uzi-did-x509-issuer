@@ -39,7 +39,8 @@ type JwtHeaderValues struct {
 
 func (u UraValidatorImpl) Validate(jwtString string) error {
 	credential := &vc.VerifiableCredential{}
-	err := json.Unmarshal([]byte(fmt.Sprintf("\"%s\"", jwtString)), credential)
+	marshal, _ := json.Marshal(jwtString)
+	err := json.Unmarshal(marshal, credential)
 	if err != nil {
 		return err
 	}
@@ -81,7 +82,7 @@ func (u UraValidatorImpl) Validate(jwtString string) error {
 	}
 
 	if ura != parseDid.Ura {
-		return fmt.Errorf("Ura in credential does not match Ura in signing certificate")
+		return fmt.Errorf("URA in credential does not match Ura in signing certificate")
 	}
 	if sanType != parseDid.SanType {
 		return fmt.Errorf("SanType in credential does not match SanType in signing certificate")
