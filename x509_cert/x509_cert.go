@@ -44,33 +44,37 @@ func Hash(data []byte, alg string) ([]byte, error) {
 
 // ParseCertificates parses a slice of DER-encoded byte arrays into a slice of x509.Certificate.
 // It returns an error if any of the certificates cannot be parsed.
-func ParseCertificates(derChain *[][]byte) (*[]x509.Certificate, error) {
+func ParseCertificates(derChain [][]byte) ([]*x509.Certificate, error) {
 	if derChain == nil {
 		return nil, fmt.Errorf("derChain is nil")
 	}
-	chain := make([]x509.Certificate, len(*derChain))
+	chain := make([]*x509.Certificate, len(derChain))
 
-	for i, certBytes := range *derChain {
+	for i, certBytes := range derChain {
 		certificate, err := x509.ParseCertificate(certBytes)
 		if err != nil {
 			return nil, err
 		}
-		chain[i] = *certificate
+		chain[i] = certificate
 	}
 
-	return &chain, nil
+	return chain, nil
 }
 
 // ParsePrivateKey parses a DER-encoded private key into an *rsa.PrivateKey.
 // It returns an error if the key is not in PKCS8 format or not an RSA key.
-func ParsePrivateKey(der *[]byte) (*rsa.PrivateKey, error) {
+func ParsePrivateKey(der []byte) (*rsa.PrivateKey, error) {
 	if der == nil {
 		return nil, fmt.Errorf("der is nil")
 	}
-	key, err := x509.ParsePKCS8PrivateKey(*der)
+	key, err := x509.ParsePKCS8PrivateKey(der)
 	if err != nil {
-		return nil, err
+		key, err = x509.ParsePKCS1PrivateKey(der)
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	if _, ok := key.(*rsa.PrivateKey); !ok {
 		return nil, fmt.Errorf("key is not RSA")
 	}

@@ -10,82 +10,79 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"regexp"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/lestrrat-go/jwx/v2/cert"
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jws"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/uzi-did-x509-issuer/ca_certs"
 	"github.com/nuts-foundation/uzi-did-x509-issuer/did_x509"
 	pem2 "github.com/nuts-foundation/uzi-did-x509-issuer/pem"
 	"github.com/nuts-foundation/uzi-did-x509-issuer/uzi_vc_validator"
 	"github.com/nuts-foundation/uzi-did-x509-issuer/x509_cert"
-	"regexp"
-	"time"
 )
-import "github.com/nuts-foundation/go-did/vc"
 
-var RegexOtherNameValue = regexp.MustCompile(`2\.16\.528\.1\.1007.\d+\.\d+-\d+-\d+-S-(\d+)-00\.000-\d+`)
+// RegexOtherNameValue matches thee OtherName field: <versie-nr>-<UZI-nr>-<pastype>-<Abonnee-nr>-<rol>-<AGB-code>
+// e.g.: 1-123456789-S-88888801-00.000-12345678
+// var RegexOtherNameValue = regexp.MustCompile(`2\.16\.528\.1\.1007.\d+\.\d+-\d+-\d+-S-(\d+)-00\.000-\d+`)
+var RegexOtherNameValue = regexp.MustCompile(`\d+-\d+-S-(\d+)-00\.000-\d+`)
 
 // Issue generates a URA Verifiable Credential using provided certificate, signing key, subject DID, and subject name.
-func Issue(certificateFile string, signingKeyFile string, subjectDID string, test bool) (string, error) {
-	certificate, err := pem2.ParseFileOrPath(certificateFile, "CERTIFICATE")
+func Issue(certificateFile string, signingKeyFile string, subjectDID string, allowTestUraCa bool) (string, error) {
+	pemBlocks, err := pem2.ParseFileOrPath(certificateFile, "CERTIFICATE")
 	if err != nil {
 		return "", err
 	}
-	_certificates, err := x509_cert.ParseCertificates(certificate)
-	if err != nil {
-		return "", err
+	allowSelfSignedCa := len(pemBlocks) > 1
+	if len(pemBlocks) == 1 {
+		certificate := pemBlocks[0]
+		pemBlocks, err = ca_certs.GetDERs(allowTestUraCa)
+		if err != nil {
+			return "", err
+		}
+		pemBlocks = append(pemBlocks, certificate)
 	}
-	if len(*_certificates) != 1 {
-		err = fmt.Errorf("did not find exactly one certificate in file %s", certificateFile)
-		return "", err
-	}
-
-	chain, err := ca_certs.GetDERs(test)
-	if err != nil {
-		return "", err
-	}
-	_chain := append(*chain, *certificate...)
-	chain = &_chain
 
 	signingKeys, err := pem2.ParseFileOrPath(signingKeyFile, "PRIVATE KEY")
 	if err != nil {
 		return "", err
 	}
-	if signingKeys == nil {
-		err := fmt.Errorf("no signing keys found")
-		return "", err
-
-	}
-	var signingKey *[]byte
-	if len(*signingKeys) == 1 {
-		signingKey = &(*signingKeys)[0]
-	} else {
+	if len(signingKeys) == 0 {
 		err := fmt.Errorf("no signing keys found")
 		return "", err
 	}
-	privateKey, err := x509_cert.ParsePrivateKey(signingKey)
+	privateKey, err := x509_cert.ParsePrivateKey(signingKeys[0])
 	if err != nil {
 		return "", err
 	}
 
-	certChain, err := x509_cert.ParseCertificates(chain)
+	certs, err := x509_cert.ParseCertificates(pemBlocks)
 	if err != nil {
 		return "", err
 	}
 
-	credential, err := BuildUraVerifiableCredential(certChain, privateKey, subjectDID)
+	chain := BuildCertificateChain(certs)
+	err = validateChain(chain)
+	if err != nil {
+		fmt.Println("error validating chain: ", err)
+		return "", err
+	}
+
+	credential, err := BuildUraVerifiableCredential(chain, privateKey, subjectDID)
 	if err != nil {
 		return "", err
 	}
-	marshal, err := json.Marshal(credential)
+	credentialJSON, err := json.Marshal(credential)
 	if err != nil {
 		return "", err
 	}
-	validator := uzi_vc_validator.NewUraValidator(test)
-	jwtString := string(marshal)
+	validator := uzi_vc_validator.NewUraValidator(allowTestUraCa, allowSelfSignedCa)
+	jwtString := string(credentialJSON)
 	jwtString = jwtString[1:]                // Chop start
 	jwtString = jwtString[:len(jwtString)-1] // Chop end
 	err = validator.Validate(jwtString)
@@ -96,25 +93,25 @@ func Issue(certificateFile string, signingKeyFile string, subjectDID string, tes
 }
 
 // BuildUraVerifiableCredential constructs a verifiable credential with specified certificates, signing key, subject DID.
-func BuildUraVerifiableCredential(certificates *[]x509.Certificate, signingKey *rsa.PrivateKey, subjectDID string) (*vc.VerifiableCredential, error) {
-	signingCert, otherNameValue, err := x509_cert.FindSigningCertificate(certificates)
+func BuildUraVerifiableCredential(chain []*x509.Certificate, signingKey *rsa.PrivateKey, subjectDID string) (*vc.VerifiableCredential, error) {
+	if len(chain) == 0 {
+		return nil, errors.New("empty certificate chain")
+	}
+	did, err := did_x509.CreateDid(chain[0], chain[len(chain)-1])
 	if err != nil {
 		return nil, err
 	}
-	chain := BuildCertificateChain(certificates, signingCert)
-	err = validateChain(chain)
-	if err != nil {
-		return nil, err
-	}
-	did, err := did_x509.CreateDid(chain)
-	if err != nil {
-		return nil, err
-	}
+	// signing cert is at the start of the chain
+	signingCert := chain[0]
 	serialNumber := signingCert.Subject.SerialNumber
 	if serialNumber == "" {
 		return nil, errors.New("serialNumber not found in signing certificate ")
 	}
 	uzi := serialNumber
+	otherNameValue, _, err := x509_cert.FindOtherName(signingCert)
+	if err != nil {
+		return nil, err
+	}
 	template, err := uraCredential(did, otherNameValue, uzi, subjectDID)
 	if err != nil {
 		return nil, err
@@ -137,7 +134,7 @@ func BuildUraVerifiableCredential(certificates *[]x509.Certificate, signingKey *
 		}
 
 		// x5c
-		serializedCert, err := marshalChain(chain)
+		serializedCert, err := marshalChain(chain...)
 		if err != nil {
 			return "", err
 		}
@@ -164,57 +161,77 @@ func BuildUraVerifiableCredential(certificates *[]x509.Certificate, signingKey *
 
 // marshalChain converts a slice of x509.Certificate instances to a cert.Chain, encoding each certificate as PEM.
 // It returns the PEM-encoded cert.Chain and an error if the encoding or header fixation fails.
-func marshalChain(certificates *[]x509.Certificate) (*cert.Chain, error) {
-	rv := &cert.Chain{}
-	certs := *certificates
-	for i, _ := range certs {
-		certificate := certs[len(certs)-i-1]
-		err := rv.Add(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certificate.Raw}))
+func marshalChain(certificates ...*x509.Certificate) (*cert.Chain, error) {
+	chainPems := &cert.Chain{}
+	for _, certificate := range certificates {
+		err := chainPems.Add(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certificate.Raw}))
 		if err != nil {
 			return nil, err
 		}
 	}
-	rv, err := x509_cert.FixChainHeaders(rv)
-	return rv, err
+	headers, err := x509_cert.FixChainHeaders(chainPems)
+	return headers, err
 }
 
-func validateChain(certificates *[]x509.Certificate) error {
-	certs := *certificates
+func validateChain(certs []*x509.Certificate) error {
 	var prev *x509.Certificate = nil
 	for i := range certs {
 		certificate := certs[len(certs)-i-1]
 		if prev != nil {
-			err := prev.CheckSignatureFrom(&certificate)
+			err := prev.CheckSignatureFrom(certificate)
 			if err != nil {
 				return err
 			}
 		}
-		if x509_cert.IsRootCa(&certificate) {
+		if x509_cert.IsRootCa(certificate) {
 			return nil
 		}
-		prev = &certificate
+		prev = certificate
 	}
 	return errors.New("failed to find a path to the root certificate in the chain, are you using a (Test) URA server certificate (Hint: the --test mode is required for Test URA server certificates)")
 }
 
 // BuildCertificateChain constructs a certificate chain from a given list of certificates and a starting signing certificate.
 // It recursively finds parent certificates for non-root CAs and appends them to the chain.
-func BuildCertificateChain(certs *[]x509.Certificate, signingCert *x509.Certificate) *[]x509.Certificate {
-	var chain []x509.Certificate
-	if signingCert == nil {
-		return &chain
-	}
-	if !x509_cert.IsRootCa(signingCert) {
-		for _, parent := range *certs {
-			err := signingCert.CheckSignatureFrom(&parent)
-			if err == nil {
-				parentChain := BuildCertificateChain(certs, &parent)
-				chain = append(chain, *parentChain...)
-			}
+// It assumes the list might not be in order.
+// The returning chain contains the signing cert at the start and the root cert at the end.
+func BuildCertificateChain(certs []*x509.Certificate) []*x509.Certificate {
+	var signingCert *x509.Certificate
+	for _, c := range certs {
+		if !c.IsCA {
+			signingCert = c
+			break
 		}
 	}
-	chain = append(chain, *signingCert)
-	return &chain
+	if signingCert == nil {
+		fmt.Println("failed to find signing certificate")
+		return nil
+	}
+
+	var chain []*x509.Certificate
+	chain = append(chain, signingCert)
+
+	certToCheck := signingCert
+	for !x509_cert.IsRootCa(certToCheck) {
+		found := false
+		for _, c := range certs {
+			if c.Equal(signingCert) {
+				continue
+			}
+			err := certToCheck.CheckSignatureFrom(c)
+			if err == nil {
+				chain = append(chain, c)
+				certToCheck = c
+				found = true
+				break
+			}
+		}
+		if !found {
+			fmt.Println("failed to find path from signingCert to root")
+			return nil
+		}
+	}
+	return chain
 }
 
 // convertClaims converts a map of claims to a JWT token.

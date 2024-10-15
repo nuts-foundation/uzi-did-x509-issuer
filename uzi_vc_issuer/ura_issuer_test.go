@@ -22,14 +22,14 @@ func TestBuildUraVerifiableCredential(t *testing.T) {
 
 	tests := []struct {
 		name string
-		in   func() (*[]x509.Certificate, *rsa.PrivateKey, string)
+		in   func() ([]*x509.Certificate, *rsa.PrivateKey, string)
 		want func(error) bool
 	}{
 		{
 			name: "invalid signing certificate",
-			in: func() (*[]x509.Certificate, *rsa.PrivateKey, string) {
-				certs := []x509.Certificate{*cert}
-				return &certs, privKey, "did:example:123"
+			in: func() ([]*x509.Certificate, *rsa.PrivateKey, string) {
+				certs := []*x509.Certificate{cert}
+				return certs, privKey, "did:example:123"
 			},
 			want: func(err error) bool {
 				return err != nil

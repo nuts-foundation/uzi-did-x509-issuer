@@ -30,7 +30,7 @@ func FindOtherName(certificate *x509.Certificate) (string, SanTypeName, error) {
 	if otherNameValue != "" {
 		return otherNameValue, SAN_TYPE_OTHER_NAME, nil
 	}
-	err = errors.New("no certificate found in the SAN attributes, please check if the certificate is an UZI Server Certificate")
+	err = errors.New("no otherName found in the SAN attributes, please check if the certificate is an UZI Server Certificate")
 	return "", "", err
 }
 
@@ -118,19 +118,21 @@ func IsIntermediateCa(signingCert *x509.Certificate) bool {
 
 // FindSigningCertificate searches the provided certificate chain for a certificate with a specific SAN and Permanent Identifier.
 // It returns the found certificate, its IdentifierValue, and an error if no matching certificate is found.
-func FindSigningCertificate(chain *[]x509.Certificate) (*x509.Certificate, string, error) {
-	if len(*chain) == 0 {
+func FindSigningCertificate(chain []*x509.Certificate) (*x509.Certificate, string, error) {
+	if len(chain) == 0 {
 		return nil, "", fmt.Errorf("no certificates provided")
 	}
 	var err error
 	var otherNameValue string
-	for _, c := range *chain {
-		otherNameValue, _, err = FindOtherName(&c)
+	for _, c := range chain {
+		otherNameValue, _, err = FindOtherName(c)
 		if err != nil {
+			fmt.Printf("info: no SAN in certificate: %v\n", err)
 			continue
 		}
 		if otherNameValue != "" {
-			return &c, otherNameValue, nil
+			fmt.Printf("info: found SAN in certificate: %v\n", otherNameValue)
+			return c, otherNameValue, nil
 		}
 	}
 	return nil, "", err

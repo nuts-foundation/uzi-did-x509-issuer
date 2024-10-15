@@ -2,11 +2,12 @@ package pem
 
 import (
 	"encoding/pem"
+	"fmt"
 	"os"
 )
 
 // ParseFileOrPath processes a file or directory at the given path and extracts PEM blocks of the specified pemType.
-func ParseFileOrPath(path string, pemType string) (*[][]byte, error) {
+func ParseFileOrPath(path string, pemType string) ([][]byte, error) {
 	fileInfo, err := os.Stat(path)
 	if err != nil {
 		return nil, err
@@ -25,9 +26,9 @@ func ParseFileOrPath(path string, pemType string) (*[][]byte, error) {
 			if err != nil {
 				return nil, err
 			}
-			files = append(files, *blocks...)
+			files = append(files, blocks...)
 		}
-		return &files, nil
+		return files, nil
 	} else {
 		blocks, err := readFile(path, pemType)
 		return blocks, err
@@ -36,7 +37,8 @@ func ParseFileOrPath(path string, pemType string) (*[][]byte, error) {
 }
 
 // readFile reads a file from the given filename, parses it for PEM blocks of the specified type, and returns the blocks.
-func readFile(filename string, pemType string) (*[][]byte, error) {
+func readFile(filename string, pemType string) ([][]byte, error) {
+	fmt.Println("filename: ", filename)
 	files := make([][]byte, 0)
 	content, err := os.ReadFile(filename)
 	if err != nil {
@@ -44,13 +46,13 @@ func readFile(filename string, pemType string) (*[][]byte, error) {
 	}
 	if looksLineCert(content, pemType) {
 		foundBlocks := ParsePemBlocks(content, pemType)
-		files = append(files, *foundBlocks...)
+		files = append(files, foundBlocks...)
 	}
-	return &files, nil
+	return files, nil
 }
 
 // ParsePemBlocks extracts specified PEM blocks from the provided certificate bytes and returns them as a pointer to a slice of byte slices.
-func ParsePemBlocks(cert []byte, pemType string) *[][]byte {
+func ParsePemBlocks(cert []byte, pemType string) [][]byte {
 	blocks := make([][]byte, 0)
 	for {
 		pemBlock, tail := pem.Decode(cert)
@@ -66,7 +68,7 @@ func ParsePemBlocks(cert []byte, pemType string) *[][]byte {
 		cert = tail
 
 	}
-	return &blocks
+	return blocks
 }
 
 // looksLineCert checks if the given certificate data is a valid PEM block of the specified type.
