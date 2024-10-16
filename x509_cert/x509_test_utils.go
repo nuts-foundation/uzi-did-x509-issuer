@@ -93,10 +93,7 @@ func BuildSelfSignedCertChain(identifier string) (chain []*x509.Certificate, cha
 		return nil, nil, nil, nil, nil, err
 	}
 
-	chain = make([]*x509.Certificate, 4)
-	for i, c := range []*x509.Certificate{signingCert, intermediateL2Cert, intermediateL1Cert, rootCert} {
-		chain[i] = c
-	}
+	chain = []*x509.Certificate{signingCert, intermediateL2Cert, intermediateL1Cert, rootCert}
 
 	chainPems = &cert.Chain{}
 	for _, p := range [][]byte{signingPEM, intermediateL2Pem, intermediateL1Pem, rootPem} {

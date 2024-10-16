@@ -2,9 +2,12 @@ package uzi_vc_issuer
 
 import (
 	"crypto/rsa"
+	"crypto/sha512"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	clo "github.com/huandu/go-clone"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -28,8 +31,7 @@ func TestBuildUraVerifiableCredential(t *testing.T) {
 		{
 			name: "empty chain",
 			in: func(certs []*x509.Certificate) ([]*x509.Certificate, *rsa.PrivateKey, string) {
-				certs = make([]*x509.Certificate, 0)
-				return certs, privateKey, "did:example:123"
+				return []*x509.Certificate{}, privateKey, "did:example:123"
 			},
 			errorText: "empty certificate chain",
 		},
@@ -227,12 +229,16 @@ func TestIssue(t *testing.T) {
 
 	brokenChain, _, _, _, _, err := x509_cert.BuildSelfSignedCertChain("KAAS")
 	failError(t, err)
-	chain, _, _, privKey, _, err := x509_cert.BuildSelfSignedCertChain("2.16.528.1.1007.99.2110-1-900030787-S-90000380-00.000-11223344")
+	identifier := "2.16.528.1.1007.99.2110-1-900030787-S-90000380-00.000-11223344"
+	chain, _, rootCert, privKey, _, err := x509_cert.BuildSelfSignedCertChain(identifier)
+	bytesRootHash := sha512.Sum512(rootCert.Raw)
+	rootHash := base64.RawURLEncoding.EncodeToString(bytesRootHash[:])
 	failError(t, err)
 
 	chainPems, err := x509_cert.EncodeCertificates(chain...)
 	failError(t, err)
 	siglePem, err := x509_cert.EncodeCertificates(chain[0])
+	failError(t, err)
 	brokenPem, err := x509_cert.EncodeCertificates(brokenChain...)
 	failError(t, err)
 	signingKeyPem, err := x509_cert.EncodeRSAPrivateKey(privKey)
@@ -254,12 +260,14 @@ func TestIssue(t *testing.T) {
 	failError(t, err)
 
 	keyFile, err := os.CreateTemp(t.TempDir(), "signing_key.pem")
+	failError(t, err)
 	err = os.WriteFile(keyFile.Name(), signingKeyPem, 0644)
 	failError(t, err)
 
 	emptyFile, err := os.CreateTemp(t.TempDir(), "empty.pem")
 	failError(t, err)
 	err = os.WriteFile(emptyFile.Name(), []byte{}, 0644)
+	failError(t, err)
 
 	tests := []struct {
 		name       string
@@ -278,7 +286,7 @@ func TestIssue(t *testing.T) {
 			allowTest:  true,
 			out: &vc.VerifiableCredential{
 				Context: []ssi.URI{ssi.MustParseURI("https://www.w3.org/2018/credentials/v1")},
-				Issuer:  did.MustParseDID("did:example:123").URI(),
+				Issuer:  did.MustParseDID(fmt.Sprintf("did:x509:0:sha512:%s::san:otherName:%s", rootHash, identifier)).URI(),
 				Type:    []ssi.URI{ssi.MustParseURI("VerifiableCredential"), ssi.MustParseURI("UziServerCertificateCredential")},
 			},
 			errorText: "",
@@ -322,7 +330,7 @@ func TestIssue(t *testing.T) {
 				}
 			} else if err == nil && tt.errorText != "" {
 				t.Errorf("Issue() unexpected success, want error")
-			} else if err != nil {
+			} else if err == nil {
 				found := vc.VerifiableCredential{}
 				err = json.Unmarshal([]byte("\""+result+"\""), &found)
 				failError(t, err)
@@ -336,7 +344,7 @@ func TestIssue(t *testing.T) {
 
 func failError(t *testing.T, err error) {
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Errorf("an error occured: %v", err.Error())
 		t.Fatal(err)
 	}
 }

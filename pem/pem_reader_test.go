@@ -140,7 +140,7 @@ func convertToString(certBlock []byte) string {
 
 func failError(t *testing.T, err error) {
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Errorf("an error occured: %v", err.Error())
 		t.Fatal(err)
 	}
 }
