@@ -54,7 +54,7 @@ func main() {
 		// 2.16.528.1.1007.99.2110-1-<UZI-nr>-S-<Abonnee-nr>-00.000-<AGB-code>
 		otherName := fmt.Sprintf("2.16.528.1.1007.99.2110-1-%s-S-%s-00.000-%s", cli.TestCert.Uzi, cli.TestCert.Ura, cli.TestCert.Agb)
 		fmt.Println("Building certificate chain for identifier:", otherName)
-		chain, _, _, privKey, _, err := x509_cert.BuildCertChain(otherName)
+		chain, _, _, privKey, _, err := x509_cert.BuildSelfSignedCertChain(otherName)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(-1)

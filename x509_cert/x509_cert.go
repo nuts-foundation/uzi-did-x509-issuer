@@ -7,9 +7,11 @@ import (
 	"crypto/sha512"
 	"crypto/x509"
 	"encoding/asn1"
+	"errors"
 	"fmt"
 	"github.com/lestrrat-go/jwx/v2/cert"
 	"golang.org/x/crypto/sha3"
+	"regexp"
 	"strings"
 )
 
@@ -20,6 +22,11 @@ var (
 	OtherNameType              = asn1.ObjectIdentifier{2, 5, 5, 5}
 	UraAssigner                = asn1.ObjectIdentifier{2, 16, 528, 1, 1007, 3, 3}
 )
+
+// RegexOtherNameValue matches thee OtherName field: <versie-nr>-<UZI-nr>-<pastype>-<Abonnee-nr>-<rol>-<AGB-code>
+// e.g.: 1-123456789-S-88888801-00.000-12345678
+// var RegexOtherNameValue = regexp.MustCompile(`2\.16\.528\.1\.1007.\d+\.\d+-\d+-\d+-S-(\d+)-00\.000-\d+`)
+var RegexOtherNameValue = regexp.MustCompile(`^[0-9.]+-\d+-(\d+)-S-(\d+)-00\.000-(\d+)$`)
 
 // Hash computes the hash of the input data using the specified algorithm.
 // Supported algorithms include "sha1", "sha256", "sha384", and "sha512".
@@ -94,4 +101,12 @@ func FixChainHeaders(chain *cert.Chain) (*cert.Chain, error) {
 		}
 	}
 	return rv, nil
+}
+
+func ParseUraFromOtherNameValue(value string) (uzi string, ura string, agb string, err error) {
+	submatch := RegexOtherNameValue.FindStringSubmatch(value)
+	if len(submatch) < 4 {
+		return "", "", "", errors.New("failed to parse URA from OtherNameValue")
+	}
+	return submatch[1], submatch[2], submatch[3], nil
 }

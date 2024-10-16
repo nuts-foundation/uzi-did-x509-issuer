@@ -22,7 +22,7 @@ func TestParseFileOrPath(t *testing.T) {
 
 	t.Run("FileExistsAndIsNotDirectory", func(t *testing.T) {
 		result, err := ParseFileOrPath(tempFile.Name(), pemType)
-		assert.NoError(t, err)
+		failError(t, err)
 		assert.NotNil(t, result)
 	})
 
@@ -41,7 +41,7 @@ func TestParseFileOrPath(t *testing.T) {
 
 	t.Run("PathIsDirectory", func(t *testing.T) {
 		_, err := ParseFileOrPath(tempDir, pemType)
-		assert.NoError(t, err)
+		failError(t, err)
 	})
 
 	t.Run("PathDoesNotExist", func(t *testing.T) {
@@ -59,8 +59,8 @@ func TestParseFileOrPath(t *testing.T) {
 				log.Fatal(err)
 			}
 		}(file.Name())
-		certs, chainPem, _, _, _, err := x509_cert.BuildCertChain("A BIG STRING")
-		assert.NoError(t, err)
+		certs, chainPem, _, _, _, err := x509_cert.BuildSelfSignedCertChain("A BIG STRING")
+		failError(t, err)
 		for i := 0; i < chainPem.Len(); i++ {
 			certBlock, ok := chainPem.Get(i)
 			certAsString := convertToString(certBlock)
@@ -74,7 +74,7 @@ func TestParseFileOrPath(t *testing.T) {
 			}
 		}
 		data, err := ParseFileOrPath(file.Name(), pemType)
-		assert.NoError(t, err)
+		failError(t, err)
 		for i := 0; i < len(data); i++ {
 			bytes := (data)[i]
 			certificate := (certs)[i]
@@ -86,8 +86,8 @@ func TestParseFileOrPath(t *testing.T) {
 
 	})
 	t.Run("Happy flow directory", func(t *testing.T) {
-		certs, chainPem, _, _, _, err := x509_cert.BuildCertChain("A BIG STRING")
-		assert.NoError(t, err)
+		certs, chainPem, _, _, _, err := x509_cert.BuildSelfSignedCertChain("A BIG STRING")
+		failError(t, err)
 		tempDir, _ := os.MkdirTemp("", "example")
 		defer func(path string) {
 			err := os.RemoveAll(path)
@@ -99,27 +99,27 @@ func TestParseFileOrPath(t *testing.T) {
 			certBlock, ok := chainPem.Get(i)
 			certAsString := convertToString(certBlock)
 			file, err := os.CreateTemp(tempDir, "prefix")
-			assert.NoError(t, err)
+			failError(t, err)
 			if ok {
 				_, err := file.WriteString(certAsString)
-				assert.NoError(t, err)
+				failError(t, err)
 			} else {
 				t.Fail()
 			}
 		}
 		data, err := ParseFileOrPath(tempDir, pemType)
-		assert.NoError(t, err)
+		failError(t, err)
 		dataMap := make(map[string][]byte)
 		for i := 0; i < len(data); i++ {
 			bytes := (data)[i]
 			hash, err := x509_cert.Hash(bytes, "sha512")
-			assert.NoError(t, err)
+			failError(t, err)
 			dataMap[base64.RawURLEncoding.EncodeToString(hash)] = bytes
 		}
 		for i := 0; i < len(certs); i++ {
 			bytes := (certs)[i].Raw
 			hash, err := x509_cert.Hash(bytes, "sha512")
-			assert.NoError(t, err)
+			failError(t, err)
 			fileBytes := dataMap[base64.RawURLEncoding.EncodeToString(hash)]
 			ok := assert.Equal(t, bytes, fileBytes)
 			if !ok {
@@ -136,4 +136,11 @@ func convertToString(certBlock []byte) string {
 	certAsString = strings.ReplaceAll(certAsString, "\\n", "\n")
 	certAsString = certAsString + "\n"
 	return certAsString
+}
+
+func failError(t *testing.T, err error) {
+	if err != nil {
+		t.Errorf("an error occured: %v", err.Error())
+		t.Fatal(err)
+	}
 }

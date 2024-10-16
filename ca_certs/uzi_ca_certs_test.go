@@ -1,19 +1,8 @@
 package ca_certs
 
 import (
-	"io"
 	"testing"
 )
-
-// Mock structure of UZICaPool for the purpose of test
-type mockUziCaPool struct{}
-
-// Mock structure of http response for the purpose of test
-type mockResponse struct {
-	Status     string
-	StatusCode int
-	Body       io.ReadCloser
-}
 
 func TestGetCertPools(t *testing.T) {
 	// Define the test cases

@@ -5,10 +5,10 @@ go 1.23.1
 require (
 	github.com/alecthomas/kong v1.2.1
 	github.com/google/uuid v1.6.0
+	github.com/huandu/go-clone v1.7.2
 	github.com/lestrrat-go/jwx/v2 v2.1.1
 	github.com/nuts-foundation/go-did v0.14.0
 	github.com/stretchr/testify v1.9.0
-	go.uber.org/mock v0.4.0
 	golang.org/x/crypto v0.28.0
 )
 
