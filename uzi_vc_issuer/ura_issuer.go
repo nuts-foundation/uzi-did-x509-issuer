@@ -10,7 +10,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"regexp"
 	"time"
 
 	"github.com/google/uuid"
@@ -26,11 +25,6 @@ import (
 	"github.com/nuts-foundation/uzi-did-x509-issuer/uzi_vc_validator"
 	"github.com/nuts-foundation/uzi-did-x509-issuer/x509_cert"
 )
-
-// RegexOtherNameValue matches thee OtherName field: <versie-nr>-<UZI-nr>-<pastype>-<Abonnee-nr>-<rol>-<AGB-code>
-// e.g.: 1-123456789-S-88888801-00.000-12345678
-// var RegexOtherNameValue = regexp.MustCompile(`2\.16\.528\.1\.1007.\d+\.\d+-\d+-\d+-S-(\d+)-00\.000-\d+`)
-var RegexOtherNameValue = regexp.MustCompile(`\d+-\d+-S-(\d+)-00\.000-\d+`)
 
 // Issue generates a URA Verifiable Credential using provided certificate, signing key, subject DID, and subject name.
 func Issue(certificateFile string, signingKeyFile string, subjectDID string, allowTestUraCa bool) (string, error) {
@@ -66,10 +60,12 @@ func Issue(certificateFile string, signingKeyFile string, subjectDID string, all
 		return "", err
 	}
 
-	chain := BuildCertificateChain(certs)
+	chain, err := BuildCertificateChain(certs)
+	if err != nil {
+		return "", err
+	}
 	err = validateChain(chain)
 	if err != nil {
-		fmt.Println("error validating chain: ", err)
 		return "", err
 	}
 
@@ -97,6 +93,9 @@ func BuildUraVerifiableCredential(chain []*x509.Certificate, signingKey *rsa.Pri
 	if len(chain) == 0 {
 		return nil, errors.New("empty certificate chain")
 	}
+	if signingKey == nil {
+		return nil, errors.New("signing key is nil")
+	}
 	did, err := did_x509.CreateDid(chain[0], chain[len(chain)-1])
 	if err != nil {
 		return nil, err
@@ -105,14 +104,13 @@ func BuildUraVerifiableCredential(chain []*x509.Certificate, signingKey *rsa.Pri
 	signingCert := chain[0]
 	serialNumber := signingCert.Subject.SerialNumber
 	if serialNumber == "" {
-		return nil, errors.New("serialNumber not found in signing certificate ")
+		return nil, errors.New("serialNumber not found in signing certificate")
 	}
-	uzi := serialNumber
 	otherNameValue, _, err := x509_cert.FindOtherName(signingCert)
 	if err != nil {
 		return nil, err
 	}
-	template, err := uraCredential(did, otherNameValue, uzi, subjectDID)
+	template, err := uraCredential(did, otherNameValue, serialNumber, subjectDID)
 	if err != nil {
 		return nil, err
 	}
@@ -195,17 +193,16 @@ func validateChain(certs []*x509.Certificate) error {
 // It recursively finds parent certificates for non-root CAs and appends them to the chain.
 // It assumes the list might not be in order.
 // The returning chain contains the signing cert at the start and the root cert at the end.
-func BuildCertificateChain(certs []*x509.Certificate) []*x509.Certificate {
+func BuildCertificateChain(certs []*x509.Certificate) ([]*x509.Certificate, error) {
 	var signingCert *x509.Certificate
 	for _, c := range certs {
-		if !c.IsCA {
+		if c != nil && !c.IsCA {
 			signingCert = c
 			break
 		}
 	}
 	if signingCert == nil {
-		fmt.Println("failed to find signing certificate")
-		return nil
+		return nil, errors.New("failed to find signing certificate")
 	}
 
 	var chain []*x509.Certificate
@@ -215,7 +212,7 @@ func BuildCertificateChain(certs []*x509.Certificate) []*x509.Certificate {
 	for !x509_cert.IsRootCa(certToCheck) {
 		found := false
 		for _, c := range certs {
-			if c.Equal(signingCert) {
+			if c == nil || c.Equal(signingCert) {
 				continue
 			}
 			err := certToCheck.CheckSignatureFrom(c)
@@ -227,11 +224,10 @@ func BuildCertificateChain(certs []*x509.Certificate) []*x509.Certificate {
 			}
 		}
 		if !found {
-			fmt.Println("failed to find path from signingCert to root")
-			return nil
+			return nil, errors.New("failed to find path from signingCert to root")
 		}
 	}
-	return chain
+	return chain, nil
 }
 
 // convertClaims converts a map of claims to a JWT token.
@@ -259,12 +255,15 @@ func convertHeaders(headers map[string]interface{}) (jws.Headers, error) {
 
 // uraCredential generates a VerifiableCredential for a given URA and UZI number, including the subject's DID.
 // It sets a 1-year expiration period from the current issuance date.
-func uraCredential(did string, otherNameValue string, uzi string, subjectDID string) (*vc.VerifiableCredential, error) {
+func uraCredential(did string, otherNameValue string, serialNumber string, subjectDID string) (*vc.VerifiableCredential, error) {
 	exp := time.Now().Add(time.Hour * 24 * 365 * 100)
 	iat := time.Now()
-	ura, err := parseUraFromOtherNameValue(otherNameValue)
+	uzi, ura, agb, err := x509_cert.ParseUraFromOtherNameValue(otherNameValue)
 	if err != nil {
 		return nil, err
+	}
+	if uzi != serialNumber {
+		return nil, errors.New("serial number does not match UZI number")
 	}
 	return &vc.VerifiableCredential{
 		Issuer:         ssi.MustParseURI(did),
@@ -277,17 +276,10 @@ func uraCredential(did string, otherNameValue string, uzi string, subjectDID str
 			map[string]interface{}{
 				"id":        subjectDID,
 				"uraNumber": ura,
-				"otherName": otherNameValue,
-				"uziNumber": uzi,
+				"otherName": uzi,
+				"uziNumber": serialNumber,
+				"agbNumber": agb,
 			},
 		},
 	}, nil
-}
-
-func parseUraFromOtherNameValue(value string) (string, error) {
-	submatch := RegexOtherNameValue.FindStringSubmatch(value)
-	if len(submatch) < 2 {
-		return "", errors.New("failed to parse URA from OtherNameValue")
-	}
-	return submatch[1], nil
 }

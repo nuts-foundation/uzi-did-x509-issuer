@@ -16,7 +16,7 @@ func TestDefaultDidCreator_CreateDid(t *testing.T) {
 	type args struct {
 		chain []*x509.Certificate
 	}
-	chain, _, rootCert, _, _, err := x509_cert.BuildCertChain("A_BIG_STRING")
+	chain, _, rootCert, _, _, err := x509_cert.BuildSelfSignedCertChain("A_BIG_STRING")
 	if err != nil {
 		t.Fatal(err)
 	}
