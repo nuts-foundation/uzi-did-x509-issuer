@@ -59,6 +59,15 @@ func FindSanTypes(certificate *x509.Certificate) ([]*OtherNameValue, error) {
 	return rv, nil
 }
 
+func FindOtherNameValue(value []*OtherNameValue, policyType PolicyType, sanTypeName SanTypeName) (string, error) {
+	for _, v := range value {
+		if v != nil && v.PolicyType == policyType && v.Type == sanTypeName {
+			return v.Value, nil
+		}
+	}
+	return "", fmt.Errorf("failed to find value for policyType: %s and sanTypeName: %s", policyType, sanTypeName)
+}
+
 func findOtherNameValue(cert *x509.Certificate) (string, error) {
 	value := ""
 	for _, extension := range cert.Extensions {
