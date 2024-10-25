@@ -106,11 +106,11 @@ func BuildUraVerifiableCredential(chain []*x509.Certificate, signingKey *rsa.Pri
 	if serialNumber == "" {
 		return nil, errors.New("serialNumber not found in signing certificate")
 	}
-	otherNameValue, _, err := x509_cert.FindOtherName(signingCert)
+	otherNameValues, err := x509_cert.FindSanTypes(signingCert)
 	if err != nil {
 		return nil, err
 	}
-	template, err := uraCredential(did, otherNameValue, serialNumber, subjectDID)
+	template, err := uraCredential(did, otherNameValues, serialNumber, subjectDID)
 	if err != nil {
 		return nil, err
 	}
@@ -255,10 +255,14 @@ func convertHeaders(headers map[string]interface{}) (jws.Headers, error) {
 
 // uraCredential generates a VerifiableCredential for a given URA and UZI number, including the subject's DID.
 // It sets a 1-year expiration period from the current issuance date.
-func uraCredential(did string, otherNameValue string, serialNumber string, subjectDID string) (*vc.VerifiableCredential, error) {
+func uraCredential(did string, otherNameValues []*x509_cert.OtherNameValue, serialNumber string, subjectDID string) (*vc.VerifiableCredential, error) {
 	exp := time.Now().Add(time.Hour * 24 * 365 * 100)
 	iat := time.Now()
-	uzi, ura, agb, err := x509_cert.ParseUraFromOtherNameValue(otherNameValue)
+	stringValue, err := x509_cert.FindOtherNameValue(otherNameValues, x509_cert.PolicyTypeSan, x509_cert.SanTypeOtherName)
+	if err != nil {
+		return nil, err
+	}
+	uzi, ura, agb, err := x509_cert.ParseUraFromOtherNameValue(stringValue)
 	if err != nil {
 		return nil, err
 	}

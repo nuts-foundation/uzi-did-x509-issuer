@@ -4,6 +4,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"github.com/nuts-foundation/uzi-did-x509-issuer/x509_cert"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -65,6 +66,13 @@ func TestDefaultDidCreator_CreateDid(t *testing.T) {
 // TestDefaultDidCreator_ParseDid tests the ParseDid function of DefaultDidProcessor by providing different DID strings.
 // It checks for correct X509Did parsing and appropriate error messages.
 func TestDefaultDidCreator_ParseDid(t *testing.T) {
+	policies := []*x509_cert.OtherNameValue{
+		{
+			PolicyType: "san",
+			Type:       "otherName",
+			Value:      "A_BIG_STRING",
+		},
+	}
 	type fields struct {
 	}
 	type args struct {
@@ -95,7 +103,7 @@ func TestDefaultDidCreator_ParseDid(t *testing.T) {
 			name:   "Happy path",
 			fields: fields{},
 			args:   args{didString: "did:x509:0:sha512:hash::san:otherName:A_BIG_STRING"},
-			want:   &X509Did{Version: "0", RootCertificateHashAlg: "sha512", RootCertificateHash: "hash", SanType: "otherName", Ura: "A_BIG_STRING"},
+			want:   &X509Did{Version: "0", RootCertificateHashAlg: "sha512", RootCertificateHash: "hash", Policies: policies},
 			errMsg: "",
 		},
 	}
@@ -116,8 +124,7 @@ func TestDefaultDidCreator_ParseDid(t *testing.T) {
 				(tt.want.Version != got.Version ||
 					tt.want.RootCertificateHashAlg != got.RootCertificateHashAlg ||
 					tt.want.RootCertificateHash != got.RootCertificateHash ||
-					tt.want.SanType != got.SanType ||
-					tt.want.Ura != got.Ura) {
+					!reflect.DeepEqual(tt.want.Policies, got.Policies)) {
 				t.Errorf("DefaultDidProcessor.ParseDid() = %v, want = %v", got, tt.want)
 			}
 		})

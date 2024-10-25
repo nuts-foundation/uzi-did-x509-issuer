@@ -21,7 +21,7 @@ func TestFindOtherName(t *testing.T) {
 			name:        "ValidOtherName",
 			certificate: chain[0],
 			wantName:    "2.16.528.1.1007.99.2110-1-900030787-S-90000380-00.000-11223344",
-			wantType:    SAN_TYPE_OTHER_NAME,
+			wantType:    SanTypeOtherName,
 			wantErr:     false,
 		},
 		{
@@ -37,16 +37,23 @@ func TestFindOtherName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotName, gotType, err := FindOtherName(tt.certificate)
+			otherNames, err := FindSanTypes(tt.certificate)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("FindOtherName() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("FindSanTypes() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if gotName != tt.wantName {
-				t.Errorf("FindOtherName() gotName = %v, want %v", gotName, tt.wantName)
-			}
-			if gotType != tt.wantType {
-				t.Errorf("FindOtherName() gotType = %v, want %v", gotType, tt.wantType)
+			if otherNames != nil {
+				nameValues := otherNames
+				gotName := nameValues[0].Value
+				if gotName != tt.wantName {
+					t.Errorf("FindSanTypes() gotName = %v, want %v", gotName, tt.wantName)
+				}
+				gotType := nameValues[0].Type
+				if gotType != tt.wantType {
+					t.Errorf("FindSanTypes() gotType = %v, want %v", gotType, tt.wantType)
+				}
+			} else if !tt.wantErr {
+				t.Errorf("unexpected nil from otherNames")
 			}
 		})
 	}

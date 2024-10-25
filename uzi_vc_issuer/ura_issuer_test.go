@@ -59,7 +59,7 @@ func TestBuildUraVerifiableCredential(t *testing.T) {
 				certs[0] = cert
 				return certs, privateKey, "did:example:123"
 			},
-			errorText: "no otherName found in the SAN attributes, please check if the certificate is an UZI Server Certificate",
+			errorText: "no values found in the SAN attributes, please check if the certificate is an UZI Server Certificate",
 		},
 		{
 			name: "invalid serial number",
@@ -77,7 +77,7 @@ func TestBuildUraVerifiableCredential(t *testing.T) {
 				certs[0] = &x509.Certificate{}
 				return certs, privateKey, "did:example:123"
 			},
-			errorText: "no otherName found in the SAN attributes, please check if the certificate is an UZI Server Certificate",
+			errorText: "no values found in the SAN attributes, please check if the certificate is an UZI Server Certificate",
 		},
 		{
 			name: "broken signing key",

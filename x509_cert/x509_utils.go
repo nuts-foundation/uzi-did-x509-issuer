@@ -14,27 +14,49 @@ type OtherName struct {
 	Value  asn1.RawValue `asn1:"tag:0,explicit"`
 }
 
+type PolicyType string
+
+const (
+	PolicyTypeSan PolicyType = "san"
+)
+
 type SanType pkix.AttributeTypeAndValue
 
 type SanTypeName string
 
 const (
-	SAN_TYPE_OTHER_NAME SanTypeName = "otherName"
+	SanTypeOtherName                   SanTypeName = "otherName"
+	SanTypePermanentIdentifierValue    SanTypeName = "permanentIdentifier.value"
+	SanTypePermanentIdentifierAssigner SanTypeName = "permanentIdentifier.assigner"
 )
 
-func FindOtherName(certificate *x509.Certificate) (string, SanTypeName, error) {
+type OtherNameValue struct {
+	PolicyType PolicyType
+	Type       SanTypeName
+	Value      string
+}
+
+func FindSanTypes(certificate *x509.Certificate) ([]*OtherNameValue, error) {
+	rv := make([]*OtherNameValue, 0)
 	if certificate == nil {
-		return "", "", errors.New("certificate is nil")
+		return nil, errors.New("certificate is nil")
 	}
 	otherNameValue, err := findOtherNameValue(certificate)
 	if err != nil {
-		return "", "", err
+		return nil, err
 	}
 	if otherNameValue != "" {
-		return otherNameValue, SAN_TYPE_OTHER_NAME, nil
+		rv = append(rv, &OtherNameValue{
+			Value:      otherNameValue,
+			Type:       SanTypeOtherName,
+			PolicyType: PolicyTypeSan,
+		})
 	}
-	err = errors.New("no otherName found in the SAN attributes, please check if the certificate is an UZI Server Certificate")
-	return "", "", err
+	if len(rv) == 0 {
+		err = errors.New("no values found in the SAN attributes, please check if the certificate is an UZI Server Certificate")
+		return nil, err
+	}
+	return rv, nil
 }
 
 func findOtherNameValue(cert *x509.Certificate) (string, error) {

@@ -15,13 +15,12 @@ type X509Did struct {
 	Version                string
 	RootCertificateHash    string
 	RootCertificateHashAlg string
-	Ura                    string
-	SanType                x509_cert.SanTypeName
+	Policies               []*x509_cert.OtherNameValue
 }
 
 // FormatDid constructs a decentralized identifier (DID) from a certificate chain and an optional policy.
 // It returns the formatted DID string or an error if the root certificate or hash calculation fails.
-func FormatDid(caCert *x509.Certificate, policy string) (string, error) {
+func FormatDid(caCert *x509.Certificate, policy ...string) (string, error) {
 	alg := "sha512"
 	rootHash, err := x509_cert.Hash(caCert.Raw, alg)
 	if err != nil {
@@ -29,22 +28,19 @@ func FormatDid(caCert *x509.Certificate, policy string) (string, error) {
 	}
 	encodeToString := base64.RawURLEncoding.EncodeToString(rootHash)
 	fragments := []string{"did", "x509", "0", alg, encodeToString}
-	if policy != "" {
-		return strings.Join([]string{strings.Join(fragments, ":"), policy}, "::"), nil
-	}
-	return strings.Join(fragments, ":"), nil
+	return strings.Join([]string{strings.Join(fragments, ":"), strings.Join(policy, "::")}, "::"), nil
 }
 
 // CreateDid generates a Decentralized Identifier (DID) from a given certificate chain.
 // It extracts the Unique Registration Address (URA) from the chain, creates a policy with it, and formats the DID.
 // Returns the generated DID or an error if any step fails.
 func CreateDid(signingCert, caCert *x509.Certificate) (string, error) {
-	otherNameValue, sanType, err := x509_cert.FindOtherName(signingCert)
+	otherNames, err := x509_cert.FindSanTypes(signingCert)
 	if err != nil {
 		return "", err
 	}
-	policy := CreatePolicy(otherNameValue, sanType)
-	formattedDid, err := FormatDid(caCert, policy)
+	policies := CreatePolicies(otherNames)
+	formattedDid, err := FormatDid(caCert, policies...)
 	return formattedDid, err
 }
 func ParseDid(didString string) (*X509Did, error) {
@@ -53,25 +49,48 @@ func ParseDid(didString string) (*X509Did, error) {
 	if didObj.Method != "x509" {
 		return nil, errors.New("invalid didString method")
 	}
-	regex := regexp.MustCompile(`0:(\w+):([^:]+)::san:([^:]+):(.+)`)
-	submatch := regex.FindStringSubmatch(didObj.ID)
-	if len(submatch) != 5 {
+	fullIdString := didObj.ID
+	idParts := strings.Split(fullIdString, "::")
+	if len(idParts) < 2 {
+		return nil, errors.New("invalid didString format, expected did:x509:0:alg:hash::(san:type:ura)+")
+	}
+	rootIdString := idParts[0]
+	policyParsString := idParts[1:]
+	regex := regexp.MustCompile(`0:(\w+):([^:]+)`)
+	submatch := regex.FindStringSubmatch(rootIdString)
+	if len(submatch) != 3 {
 		return nil, errors.New("invalid didString format, expected didString:x509:0:alg:hash::san:type:ura")
 	}
 	x509Did.Version = "0"
 	x509Did.RootCertificateHashAlg = submatch[1]
 	x509Did.RootCertificateHash = submatch[2]
-	x509Did.SanType = x509_cert.SanTypeName(submatch[3])
-	x509Did.Ura = submatch[4]
+
+	for _, policyString := range policyParsString {
+		regex := regexp.MustCompile(`(\w+):([^:]+):([^:]+)`)
+		submatch := regex.FindStringSubmatch(policyString)
+		if len(submatch) != 4 {
+			return nil, errors.New("invalid didString format, expected didString:x509:0:alg:hash::san:type:ura")
+		}
+		x509Did.Policies = append(x509Did.Policies, &x509_cert.OtherNameValue{
+			PolicyType: x509_cert.PolicyType(submatch[1]),
+			Type:       x509_cert.SanTypeName(submatch[2]),
+			Value:      submatch[3],
+		})
+	}
+
 	return &x509Did, nil
 }
 
-// CreatePolicy constructs a policy string using the provided URA, fixed string "san", and "permanentIdentifier".
+// CreatePolicies constructs a policy string using the provided URA, fixed string "san", and "permanentIdentifier".
 // It joins these components with colons and returns the resulting policy string.
-func CreatePolicy(otherNameValue string, sanType x509_cert.SanTypeName) string {
-	fragments := []string{"san", string(sanType), otherNameValue}
-	policy := strings.Join(fragments, ":")
-	return policy
+func CreatePolicies(otherNames []*x509_cert.OtherNameValue) []string {
+	var policies []string
+	for _, otherName := range otherNames {
+		fragments := []string{string(otherName.PolicyType), string(otherName.Type), otherName.Value}
+		policy := strings.Join(fragments, ":")
+		policies = append(policies, policy)
+	}
+	return policies
 }
 
 // FindRootCertificate traverses a chain of x509 certificates and returns the first certificate that is a CA.

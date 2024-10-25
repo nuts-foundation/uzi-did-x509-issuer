@@ -103,8 +103,8 @@ func FixChainHeaders(chain *cert.Chain) (*cert.Chain, error) {
 	return rv, nil
 }
 
-func ParseUraFromOtherNameValue(value string) (uzi string, ura string, agb string, err error) {
-	submatch := RegexOtherNameValue.FindStringSubmatch(value)
+func ParseUraFromOtherNameValue(stringValue string) (uzi string, ura string, agb string, err error) {
+	submatch := RegexOtherNameValue.FindStringSubmatch(stringValue)
 	if len(submatch) < 4 {
 		return "", "", "", errors.New("failed to parse URA from OtherNameValue")
 	}

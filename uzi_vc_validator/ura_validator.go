@@ -76,18 +76,27 @@ func (u UraValidatorImpl) Validate(jwtString string) error {
 	if err != nil {
 		return err
 	}
-	ura, sanType, err := x509_cert.FindOtherName(signingCert)
+	otherNames, err := x509_cert.FindSanTypes(signingCert)
 	if err != nil {
 		return err
 	}
+	for _, policy := range parseDid.Policies {
+		found := false
+		for _, otherName := range otherNames {
+			if otherName.Type == policy.Type && otherName.PolicyType == policy.PolicyType {
+				if policy.Value != otherName.Value {
+					return fmt.Errorf("%s value %s of policy %s in credential does not match according value in signing certificate", otherName.Type, otherName.Type, otherName.PolicyType)
+				} else {
+					found = true
+					break
+				}
+			}
+		}
+		if !found {
+			return fmt.Errorf("unable to locate a value for %s of policy %s", policy.Type, policy.PolicyType)
+		}
 
-	if ura != parseDid.Ura {
-		return fmt.Errorf("URA in credential does not match Ura in signing certificate")
 	}
-	if sanType != parseDid.SanType {
-		return fmt.Errorf("SanType in credential does not match SanType in signing certificate")
-	}
-
 	return nil
 }
 
