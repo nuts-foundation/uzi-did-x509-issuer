@@ -14,6 +14,11 @@ type OtherName struct {
 	Value  asn1.RawValue `asn1:"tag:0,explicit"`
 }
 
+type StingAndOid struct {
+	Value    string
+	Assigner asn1.ObjectIdentifier
+}
+
 type PolicyType string
 
 const (
@@ -52,6 +57,25 @@ func FindSanTypes(certificate *x509.Certificate) ([]*OtherNameValue, error) {
 			PolicyType: PolicyTypeSan,
 		})
 	}
+
+	value, assigner, err := findPermanentIdentifiers(certificate)
+	if err != nil {
+		return nil, err
+	}
+	if value != "" {
+		rv = append(rv, &OtherNameValue{
+			Value:      value,
+			Type:       SanTypePermanentIdentifierValue,
+			PolicyType: PolicyTypeSan,
+		})
+	}
+	if len(assigner) > 0 {
+		rv = append(rv, &OtherNameValue{
+			Value:      assigner.String(),
+			Type:       SanTypePermanentIdentifierAssigner,
+			PolicyType: PolicyTypeSan,
+		})
+	}
 	if len(rv) == 0 {
 		err = errors.New("no values found in the SAN attributes, please check if the certificate is an UZI Server Certificate")
 		return nil, err
@@ -66,6 +90,42 @@ func FindOtherNameValue(value []*OtherNameValue, policyType PolicyType, sanTypeN
 		}
 	}
 	return "", fmt.Errorf("failed to find value for policyType: %s and sanTypeName: %s", policyType, sanTypeName)
+}
+
+func findPermanentIdentifiers(cert *x509.Certificate) (string, asn1.ObjectIdentifier, error) {
+	value := ""
+	var assigner asn1.ObjectIdentifier
+	for _, extension := range cert.Extensions {
+		if extension.Id.Equal(SubjectAlternativeNameType) {
+			err := forEachSAN(extension.Value, func(tag int, data []byte) error {
+				if tag != 0 {
+					return nil
+				}
+				var other OtherName
+				_, err := asn1.UnmarshalWithParams(data, &other, "tag:0")
+				if err != nil {
+					return fmt.Errorf("could not parse requested other SAN: %v", err)
+				}
+				if other.TypeID.Equal(PermanentIdentifierType) {
+					var x StingAndOid
+					_, err = asn1.Unmarshal(other.Value.Bytes, &x)
+					if err != nil {
+						return err
+					}
+					value = x.Value
+					assigner = x.Assigner
+
+				}
+				return nil
+			})
+			if err != nil {
+				return "", nil, err
+			}
+
+			return value, assigner, err
+		}
+	}
+	return "", nil, nil
 }
 
 func findOtherNameValue(cert *x509.Certificate) (string, error) {

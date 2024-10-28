@@ -2,27 +2,42 @@ package x509_cert
 
 import (
 	"crypto/x509"
+	"reflect"
 	"testing"
 )
 
 func TestFindOtherName(t *testing.T) {
-	chain, _, _, _, _, err := BuildSelfSignedCertChain("2.16.528.1.1007.99.2110-1-900030787-S-90000380-00.000-11223344")
+	chain, _, _, _, _, err := BuildSelfSignedCertChain("2.16.528.1.1007.99.2110-1-900030787-S-90000380-00.000-11223344", "90000380")
 	if err != nil {
 		t.Fatal(err)
 	}
 	tests := []struct {
 		name        string
 		certificate *x509.Certificate
-		wantName    string
-		wantType    SanTypeName
+		want        []*OtherNameValue
 		wantErr     bool
 	}{
 		{
 			name:        "ValidOtherName",
 			certificate: chain[0],
-			wantName:    "2.16.528.1.1007.99.2110-1-900030787-S-90000380-00.000-11223344",
-			wantType:    SanTypeOtherName,
-			wantErr:     false,
+			want: []*OtherNameValue{
+				{
+					PolicyType: PolicyTypeSan,
+					Type:       SanTypeOtherName,
+					Value:      "2.16.528.1.1007.99.2110-1-900030787-S-90000380-00.000-11223344",
+				},
+				{
+					PolicyType: PolicyTypeSan,
+					Type:       SanTypePermanentIdentifierValue,
+					Value:      "90000380",
+				},
+				{
+					PolicyType: PolicyTypeSan,
+					Type:       SanTypePermanentIdentifierAssigner,
+					Value:      UraAssigner.String(),
+				},
+			},
+			wantErr: false,
 		},
 		{
 			name:        "NoOtherName",
@@ -43,14 +58,8 @@ func TestFindOtherName(t *testing.T) {
 				return
 			}
 			if otherNames != nil {
-				nameValues := otherNames
-				gotName := nameValues[0].Value
-				if gotName != tt.wantName {
-					t.Errorf("FindSanTypes() gotName = %v, want %v", gotName, tt.wantName)
-				}
-				gotType := nameValues[0].Type
-				if gotType != tt.wantType {
-					t.Errorf("FindSanTypes() gotType = %v, want %v", gotType, tt.wantType)
+				if !reflect.DeepEqual(otherNames, tt.want) {
+					t.Errorf("FindSanTypes() got = %v, want %v", otherNames, tt.want)
 				}
 			} else if !tt.wantErr {
 				t.Errorf("unexpected nil from otherNames")
