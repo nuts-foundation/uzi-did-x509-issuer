@@ -19,7 +19,7 @@ type SanType pkix.AttributeTypeAndValue
 type SanTypeName string
 
 const (
-	SAN_TYPE_OTHER_NAME SanTypeName = "otherName"
+	SanTypeOtherName SanTypeName = "otherName"
 )
 
 func FindOtherName(certificate *x509.Certificate) (string, SanTypeName, error) {
