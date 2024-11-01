@@ -31,7 +31,7 @@ func FindOtherName(certificate *x509.Certificate) (string, SanTypeName, error) {
 		return "", "", err
 	}
 	if otherNameValue != "" {
-		return otherNameValue, SAN_TYPE_OTHER_NAME, nil
+		return otherNameValue, SanTypeOtherName, nil
 	}
 	err = errors.New("no otherName found in the SAN attributes, please check if the certificate is an UZI Server Certificate")
 	return "", "", err

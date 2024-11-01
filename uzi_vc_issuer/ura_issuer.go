@@ -255,10 +255,10 @@ func convertHeaders(headers map[string]interface{}) (jws.Headers, error) {
 
 // uraCredential generates a VerifiableCredential for a given URA and UZI number, including the subject's DID.
 // It sets a 1-year expiration period from the current issuance date.
-func uraCredential(did string, otherNameValue string, serialNumber string, subjectDID string) (*vc.VerifiableCredential, error) {
+func uraCredential(issuer string, otherNameValue string, serialNumber string, subjectDID string) (*vc.VerifiableCredential, error) {
 	exp := time.Now().Add(time.Hour * 24 * 365 * 100)
 	iat := time.Now()
-	uzi, ura, agb, err := x509_cert.ParseUraFromOtherNameValue(otherNameValue)
+	uzi, _, _, err := x509_cert.ParseUraFromOtherNameValue(otherNameValue)
 	if err != nil {
 		return nil, err
 	}
@@ -266,7 +266,7 @@ func uraCredential(did string, otherNameValue string, serialNumber string, subje
 		return nil, errors.New("serial number does not match UZI number")
 	}
 	return &vc.VerifiableCredential{
-		Issuer:         ssi.MustParseURI(did),
+		Issuer:         ssi.MustParseURI(issuer),
 		Context:        []ssi.URI{ssi.MustParseURI("https://www.w3.org/2018/credentials/v1")},
 		Type:           []ssi.URI{ssi.MustParseURI("VerifiableCredential"), ssi.MustParseURI("UziServerCertificateCredential")},
 		ID:             func() *ssi.URI { id := ssi.MustParseURI(uuid.NewString()); return &id }(),
@@ -274,11 +274,9 @@ func uraCredential(did string, otherNameValue string, serialNumber string, subje
 		ExpirationDate: &exp,
 		CredentialSubject: []interface{}{
 			map[string]interface{}{
-				"id":        subjectDID,
-				"uraNumber": ura,
-				"otherName": uzi,
-				"uziNumber": serialNumber,
-				"agbNumber": agb,
+				"id":           subjectDID,
+				"serialNumber": serialNumber,
+				"otherName":    otherNameValue,
 			},
 		},
 	}, nil
