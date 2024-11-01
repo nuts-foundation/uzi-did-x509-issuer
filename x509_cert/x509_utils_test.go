@@ -21,7 +21,7 @@ func TestFindOtherName(t *testing.T) {
 			name:        "ValidOtherName",
 			certificate: chain[0],
 			wantName:    "2.16.528.1.1007.99.2110-1-900030787-S-90000380-00.000-11223344",
-			wantType:    SAN_TYPE_OTHER_NAME,
+			wantType:    SanTypeOtherName,
 			wantErr:     false,
 		},
 		{
