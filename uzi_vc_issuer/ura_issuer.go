@@ -110,6 +110,14 @@ func BuildUraVerifiableCredential(chain []*x509.Certificate, signingKey *rsa.Pri
 	if err != nil {
 		return nil, err
 	}
+	stringValue, err := x509_cert.FindOtherNameValue(otherNameValues, x509_cert.PolicyTypeSan, x509_cert.SanTypeOtherName)
+	uzi, _, _, err := x509_cert.ParseUraFromOtherNameValue(stringValue)
+	if err != nil {
+		return nil, err
+	}
+	if uzi != serialNumber {
+		return nil, errors.New("serial number does not match UZI number")
+	}
 	template, err := uraCredential(did, otherNameValues, serialNumber, subjectDID)
 	if err != nil {
 		return nil, err
@@ -255,22 +263,15 @@ func convertHeaders(headers map[string]interface{}) (jws.Headers, error) {
 
 // uraCredential generates a VerifiableCredential for a given URA and UZI number, including the subject's DID.
 // It sets a 1-year expiration period from the current issuance date.
-func uraCredential(did string, otherNameValues []*x509_cert.OtherNameValue, serialNumber string, subjectDID string) (*vc.VerifiableCredential, error) {
+func uraCredential(issuer string, otherNameValues []*x509_cert.OtherNameValue, serialNumber string, subjectDID string) (*vc.VerifiableCredential, error) {
 	exp := time.Now().Add(time.Hour * 24 * 365 * 100)
 	iat := time.Now()
 	stringValue, err := x509_cert.FindOtherNameValue(otherNameValues, x509_cert.PolicyTypeSan, x509_cert.SanTypeOtherName)
 	if err != nil {
 		return nil, err
 	}
-	uzi, ura, agb, err := x509_cert.ParseUraFromOtherNameValue(stringValue)
-	if err != nil {
-		return nil, err
-	}
-	if uzi != serialNumber {
-		return nil, errors.New("serial number does not match UZI number")
-	}
 	return &vc.VerifiableCredential{
-		Issuer:         ssi.MustParseURI(did),
+		Issuer:         ssi.MustParseURI(issuer),
 		Context:        []ssi.URI{ssi.MustParseURI("https://www.w3.org/2018/credentials/v1")},
 		Type:           []ssi.URI{ssi.MustParseURI("VerifiableCredential"), ssi.MustParseURI("UziServerCertificateCredential")},
 		ID:             func() *ssi.URI { id := ssi.MustParseURI(uuid.NewString()); return &id }(),
@@ -279,10 +280,7 @@ func uraCredential(did string, otherNameValues []*x509_cert.OtherNameValue, seri
 		CredentialSubject: []interface{}{
 			map[string]interface{}{
 				"id":        subjectDID,
-				"uraNumber": ura,
-				"otherName": uzi,
-				"uziNumber": serialNumber,
-				"agbNumber": agb,
+				"otherName": stringValue,
 			},
 		},
 	}, nil
