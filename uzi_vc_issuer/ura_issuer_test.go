@@ -20,7 +20,7 @@ import (
 
 func TestBuildUraVerifiableCredential(t *testing.T) {
 
-	_certs, _, _, privateKey, signingCert, err := x509_cert.BuildSelfSignedCertChain("2.16.528.1.1007.99.2110-1-900030787-S-90000380-00.000-11223344")
+	_certs, _, _, privateKey, signingCert, err := x509_cert.BuildSelfSignedCertChain("2.16.528.1.1007.99.2110-1-900030787-S-90000380-00.000-11223344", "90000380")
 	failError(t, err)
 
 	tests := []struct {
@@ -38,7 +38,7 @@ func TestBuildUraVerifiableCredential(t *testing.T) {
 		{
 			name: "invalid signing certificate 1",
 			in: func(certs []*x509.Certificate) ([]*x509.Certificate, *rsa.PrivateKey, string) {
-				signingTmpl, err := x509_cert.SigningCertTemplate(nil, "2.16.528.1.1007.99.2110-1-900030787-S-90000380-00.000-11223344")
+				signingTmpl, err := x509_cert.SigningCertTemplate(nil, "2.16.528.1.1007.99.2110-1-900030787-S-90000380-00.000-11223344", "90000380")
 				signingTmpl.Subject.SerialNumber = "KAAS"
 				failError(t, err)
 				cert, _, err := x509_cert.CreateCert(signingTmpl, signingCert, signingCert.PublicKey, privateKey)
@@ -51,7 +51,7 @@ func TestBuildUraVerifiableCredential(t *testing.T) {
 		{
 			name: "invalid signing certificate 2",
 			in: func(certs []*x509.Certificate) ([]*x509.Certificate, *rsa.PrivateKey, string) {
-				signingTmpl, err := x509_cert.SigningCertTemplate(nil, "2.16.528.1.1007.99.2110-1-900030787-S-90000380-00.000-11223344")
+				signingTmpl, err := x509_cert.SigningCertTemplate(nil, "2.16.528.1.1007.99.2110-1-900030787-S-90000380-00.000-11223344", "90000380")
 				signingTmpl.ExtraExtensions = make([]pkix.Extension, 0)
 				failError(t, err)
 				cert, _, err := x509_cert.CreateCert(signingTmpl, signingCert, signingCert.PublicKey, privateKey)
@@ -59,7 +59,7 @@ func TestBuildUraVerifiableCredential(t *testing.T) {
 				certs[0] = cert
 				return certs, privateKey, "did:example:123"
 			},
-			errorText: "no otherName found in the SAN attributes, please check if the certificate is an UZI Server Certificate",
+			errorText: "no values found in the SAN attributes, please check if the certificate is an UZI Server Certificate",
 		},
 		{
 			name: "invalid serial number",
@@ -77,7 +77,7 @@ func TestBuildUraVerifiableCredential(t *testing.T) {
 				certs[0] = &x509.Certificate{}
 				return certs, privateKey, "did:example:123"
 			},
-			errorText: "no otherName found in the SAN attributes, please check if the certificate is an UZI Server Certificate",
+			errorText: "no values found in the SAN attributes, please check if the certificate is an UZI Server Certificate",
 		},
 		{
 			name: "broken signing key",
@@ -112,7 +112,7 @@ func TestBuildUraVerifiableCredential(t *testing.T) {
 }
 
 func TestBuildCertificateChain(t *testing.T) {
-	certs, _, _, _, _, err := x509_cert.BuildSelfSignedCertChain("2.16.528.1.1007.99.2110-1-900030787-S-90000380-00.000-11223344")
+	certs, _, _, _, _, err := x509_cert.BuildSelfSignedCertChain("2.16.528.1.1007.99.2110-1-900030787-S-90000380-00.000-11223344", "90000380")
 	failError(t, err)
 	tests := []struct {
 		name      string
@@ -227,10 +227,11 @@ func TestBuildCertificateChain(t *testing.T) {
 
 func TestIssue(t *testing.T) {
 
-	brokenChain, _, _, _, _, err := x509_cert.BuildSelfSignedCertChain("KAAS")
+	brokenChain, _, _, _, _, err := x509_cert.BuildSelfSignedCertChain("KAAS", "HAM")
 	failError(t, err)
 	identifier := "2.16.528.1.1007.99.2110-1-900030787-S-90000380-00.000-11223344"
-	chain, _, rootCert, privKey, _, err := x509_cert.BuildSelfSignedCertChain(identifier)
+	ura := "90000380"
+	chain, _, rootCert, privKey, _, err := x509_cert.BuildSelfSignedCertChain(identifier, ura)
 	bytesRootHash := sha512.Sum512(rootCert.Raw)
 	rootHash := base64.RawURLEncoding.EncodeToString(bytesRootHash[:])
 	failError(t, err)
@@ -286,7 +287,7 @@ func TestIssue(t *testing.T) {
 			allowTest:  true,
 			out: &vc.VerifiableCredential{
 				Context: []ssi.URI{ssi.MustParseURI("https://www.w3.org/2018/credentials/v1")},
-				Issuer:  did.MustParseDID(fmt.Sprintf("did:x509:0:sha512:%s::san:otherName:%s", rootHash, identifier)).URI(),
+				Issuer:  did.MustParseDID(fmt.Sprintf("did:x509:0:sha512:%s::san:otherName:%s::san:permanentIdentifier.value:%s::san:permanentIdentifier.assigner:%s", rootHash, identifier, ura, x509_cert.UraAssigner.String())).URI(),
 				Type:    []ssi.URI{ssi.MustParseURI("VerifiableCredential"), ssi.MustParseURI("UziServerCertificateCredential")},
 			},
 			errorText: "",

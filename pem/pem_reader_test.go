@@ -59,7 +59,7 @@ func TestParseFileOrPath(t *testing.T) {
 				log.Fatal(err)
 			}
 		}(file.Name())
-		certs, chainPem, _, _, _, err := x509_cert.BuildSelfSignedCertChain("A BIG STRING")
+		certs, chainPem, _, _, _, err := x509_cert.BuildSelfSignedCertChain("A BIG STRING", "a small one")
 		failError(t, err)
 		for i := 0; i < chainPem.Len(); i++ {
 			certBlock, ok := chainPem.Get(i)
@@ -86,7 +86,7 @@ func TestParseFileOrPath(t *testing.T) {
 
 	})
 	t.Run("Happy flow directory", func(t *testing.T) {
-		certs, chainPem, _, _, _, err := x509_cert.BuildSelfSignedCertChain("A BIG STRING")
+		certs, chainPem, _, _, _, err := x509_cert.BuildSelfSignedCertChain("A BIG STRING", "a small one")
 		failError(t, err)
 		tempDir, _ := os.MkdirTemp("", "example")
 		defer func(path string) {

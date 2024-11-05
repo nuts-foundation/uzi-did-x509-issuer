@@ -74,7 +74,7 @@ func TestHash(t *testing.T) {
 	}
 }
 func TestParseChain(t *testing.T) {
-	_, chainPem, _, _, _, err := BuildSelfSignedCertChain("9907878")
+	_, chainPem, _, _, _, err := BuildSelfSignedCertChain("2.16.528.1.1007.99.2110-1-900030787-S-90000380-00.000-11223344", "900030787")
 	failError(t, err)
 	derChains := make([][]byte, chainPem.Len())
 	for i := 0; i < chainPem.Len(); i++ {
@@ -118,7 +118,7 @@ func TestParseChain(t *testing.T) {
 }
 
 func TestParsePrivateKey(t *testing.T) {
-	_, _, _, privateKey, _, err := BuildSelfSignedCertChain("9907878")
+	_, _, _, privateKey, _, err := BuildSelfSignedCertChain("2.16.528.1.1007.99.2110-1-900030787-S-90000380-00.000-11223344", "900030787")
 	failError(t, err)
 	privateKeyBytes, err := x509.MarshalPKCS8PrivateKey(privateKey)
 	failError(t, err)

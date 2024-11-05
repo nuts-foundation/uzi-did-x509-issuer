@@ -40,7 +40,7 @@ func EncodeCertificates(certs ...*x509.Certificate) ([]byte, error) {
 }
 
 // BuildSelfSignedCertChain generates a certificate chain, including root, intermediate, and signing certificates.
-func BuildSelfSignedCertChain(identifier string) (chain []*x509.Certificate, chainPems *cert.Chain, rootCert *x509.Certificate, signingKey *rsa.PrivateKey, signingCert *x509.Certificate, err error) {
+func BuildSelfSignedCertChain(identifier string, permanentIdentifierValue string) (chain []*x509.Certificate, chainPems *cert.Chain, rootCert *x509.Certificate, signingKey *rsa.PrivateKey, signingCert *x509.Certificate, err error) {
 	rootKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
@@ -84,7 +84,7 @@ func BuildSelfSignedCertChain(identifier string) (chain []*x509.Certificate, cha
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
-	signingTmpl, err := SigningCertTemplate(nil, identifier)
+	signingTmpl, err := SigningCertTemplate(nil, identifier, permanentIdentifierValue)
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
@@ -134,7 +134,7 @@ func CertTemplate(serialNumber *big.Int, organization string) (*x509.Certificate
 }
 
 // SigningCertTemplate creates a x509.Certificate template for a signing certificate with an optional serial number.
-func SigningCertTemplate(serialNumber *big.Int, identifier string) (*x509.Certificate, error) {
+func SigningCertTemplate(serialNumber *big.Int, identifier string, permanentIdentifierValue string) (*x509.Certificate, error) {
 	// generate a random serial number (a real cert authority would have some logic behind this)
 	if serialNumber == nil {
 		serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 8)
@@ -160,6 +160,31 @@ func SigningCertTemplate(serialNumber *big.Int, identifier string) (*x509.Certif
 	}
 	var list []asn1.RawValue
 	list = append(list, *raw)
+
+	if permanentIdentifierValue != "" {
+		permId := StingAndOid{
+			Value:    permanentIdentifierValue,
+			Assigner: UraAssigner,
+		}
+		raw, err = toRawValue(permId, "seq")
+		if err != nil {
+			return nil, err
+		}
+		permOtherName := OtherName{
+			TypeID: PermanentIdentifierType,
+			Value: asn1.RawValue{
+				Class:      2,
+				Tag:        0,
+				IsCompound: true,
+				Bytes:      raw.FullBytes,
+			},
+		}
+		raw, err = toRawValue(permOtherName, "tag:0")
+		if err != nil {
+			return nil, err
+		}
+		list = append(list, *raw)
+	}
 	//fmt.Println("OFF")
 	marshal, err := asn1.Marshal(list)
 	if err != nil {
