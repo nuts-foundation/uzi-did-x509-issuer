@@ -56,7 +56,10 @@ Follow these steps to set up the project:
    ```sh
    go build -ldflags="-w -s " -o ./issuer
    ```
-
+    or
+   ```shell
+   make build
+   ```
 ## Usage
 
 1. **Run the application:**
