@@ -4,7 +4,7 @@ This guide describes how to load the generated VCs by the *UZI Server Certificaa
 ## Prerequisites
 The following is required to load the VC into the NUTS node
  * A UZI Server Certificate and private key, either a test or production. In order to use the test certificate, the `-t` option must be provided.
- * This tool, make sure to run `make build` for generating the binary
+ * This tool, make sure to run `make build` for generating the binary. For more details see the [README.md](README.md) file.
  * A running NUTS node to create a did and load the certificate. The NUTS node will be referred to as ``${nuts_base_url}``
 
 ## Issuing a VC to a NUTS node.
