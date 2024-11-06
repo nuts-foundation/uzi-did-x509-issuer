@@ -133,7 +133,7 @@ func BuildUraVerifiableCredential(chain []*x509.Certificate, signingKey *rsa.Pri
 		}
 
 		if hdrs.KeyID() == "" {
-			err := hdrs.Set("kid", did)
+			err := hdrs.Set("kid", did+"#0")
 			if err != nil {
 				return "", err
 			}
