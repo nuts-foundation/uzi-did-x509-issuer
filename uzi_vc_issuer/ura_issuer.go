@@ -27,7 +27,7 @@ import (
 )
 
 // Issue generates a URA Verifiable Credential using provided certificate, signing key, subject DID, and subject name.
-func Issue(certificateFile string, signingKeyFile string, subjectDID string, allowTestUraCa bool) (string, error) {
+func Issue(certificateFile string, signingKeyFile string, subjectDID string, allowTestUraCa bool, includePermanentIdentifier bool) (string, error) {
 	pemBlocks, err := pem2.ParseFileOrPath(certificateFile, "CERTIFICATE")
 	if err != nil {
 		return "", err
@@ -68,8 +68,12 @@ func Issue(certificateFile string, signingKeyFile string, subjectDID string, all
 	if err != nil {
 		return "", err
 	}
-
-	credential, err := BuildUraVerifiableCredential(chain, privateKey, subjectDID)
+	types := []x509_cert.SanTypeName{x509_cert.SanTypeOtherName}
+	if includePermanentIdentifier {
+		types = append(types, x509_cert.SanTypePermanentIdentifierValue)
+		types = append(types, x509_cert.SanTypePermanentIdentifierAssigner)
+	}
+	credential, err := BuildUraVerifiableCredential(chain, privateKey, subjectDID, types...)
 	if err != nil {
 		return "", err
 	}
@@ -89,14 +93,14 @@ func Issue(certificateFile string, signingKeyFile string, subjectDID string, all
 }
 
 // BuildUraVerifiableCredential constructs a verifiable credential with specified certificates, signing key, subject DID.
-func BuildUraVerifiableCredential(chain []*x509.Certificate, signingKey *rsa.PrivateKey, subjectDID string) (*vc.VerifiableCredential, error) {
+func BuildUraVerifiableCredential(chain []*x509.Certificate, signingKey *rsa.PrivateKey, subjectDID string, types ...x509_cert.SanTypeName) (*vc.VerifiableCredential, error) {
 	if len(chain) == 0 {
 		return nil, errors.New("empty certificate chain")
 	}
 	if signingKey == nil {
 		return nil, errors.New("signing key is nil")
 	}
-	did, err := did_x509.CreateDid(chain[0], chain[len(chain)-1])
+	did, err := did_x509.CreateDid(chain[0], chain[len(chain)-1], types...)
 	if err != nil {
 		return nil, err
 	}

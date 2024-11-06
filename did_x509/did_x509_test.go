@@ -17,7 +17,7 @@ func TestDefaultDidCreator_CreateDidSingle(t *testing.T) {
 	type args struct {
 		chain []*x509.Certificate
 	}
-	chain, _, rootCert, _, _, err := x509_cert.BuildSelfSignedCertChain("A_BIG_STRING", "")
+	chain, _, rootCert, _, _, err := x509_cert.BuildSelfSignedCertChain("A_BIG_STRING", "A_PERMANENT_STRING")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -28,24 +28,60 @@ func TestDefaultDidCreator_CreateDidSingle(t *testing.T) {
 		t.Fatal(err)
 	}
 	rootHashString := base64.RawURLEncoding.EncodeToString(hash)
+	types := []x509_cert.SanTypeName{x509_cert.SanTypeOtherName, x509_cert.SanTypePermanentIdentifierValue, x509_cert.SanTypePermanentIdentifierAssigner}
+
 	tests := []struct {
 		name   string
 		fields fields
 		args   args
 		want   string
 		errMsg string
+		types  []x509_cert.SanTypeName
 	}{
 		{
 			name:   "Happy path",
 			fields: fields{},
 			args:   args{chain: chain},
+			want:   strings.Join([]string{"did", "x509", "0", alg, rootHashString, "", "san", "otherName", "A_BIG_STRING", "", "san", "permanentIdentifier.value", "A_PERMANENT_STRING", "", "san", "permanentIdentifier.assigner", "2.16.528.1.1007.3.3"}, ":"),
+			types:  types,
+			errMsg: "",
+		},
+		{
+			name:   "Happy path",
+			fields: fields{},
+			args:   args{chain: chain},
+			want:   strings.Join([]string{"did", "x509", "0", alg, rootHashString, "", "san", "otherName", "A_BIG_STRING", "", "san", "permanentIdentifier.value", "A_PERMANENT_STRING"}, ":"),
+			types:  []x509_cert.SanTypeName{x509_cert.SanTypeOtherName, x509_cert.SanTypePermanentIdentifierValue},
+			errMsg: "",
+		},
+		{
+			name:   "Happy path",
+			fields: fields{},
+			args:   args{chain: chain},
 			want:   strings.Join([]string{"did", "x509", "0", alg, rootHashString, "", "san", "otherName", "A_BIG_STRING"}, ":"),
+			types:  []x509_cert.SanTypeName{x509_cert.SanTypeOtherName},
+			errMsg: "",
+		},
+		{
+			name:   "Happy path",
+			fields: fields{},
+			args:   args{chain: chain},
+			want:   strings.Join([]string{"did", "x509", "0", alg, rootHashString, "", "san", "permanentIdentifier.value", "A_PERMANENT_STRING"}, ":"),
+			types:  []x509_cert.SanTypeName{x509_cert.SanTypePermanentIdentifierValue},
+			errMsg: "",
+		},
+		{
+			name:   "Happy path",
+			fields: fields{},
+			args:   args{chain: chain},
+			want:   strings.Join([]string{"did", "x509", "0", alg, rootHashString, "", "san", "permanentIdentifier.assigner", "2.16.528.1.1007.3.3"}, ":"),
+			types:  []x509_cert.SanTypeName{x509_cert.SanTypePermanentIdentifierAssigner},
 			errMsg: "",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := CreateDid(tt.args.chain[0], tt.args.chain[len(tt.args.chain)-1])
+			got, err := CreateDid(tt.args.chain[0], tt.args.chain[len(tt.args.chain)-1], tt.types...)
 			wantErr := tt.errMsg != ""
 			if (err != nil) != wantErr {
 				t.Errorf("DefaultDidProcessor.CreateDid() error = %v, errMsg %v", err, tt.errMsg)
@@ -79,24 +115,28 @@ func TestDefaultDidCreator_CreateDidDouble(t *testing.T) {
 		t.Fatal(err)
 	}
 	rootHashString := base64.RawURLEncoding.EncodeToString(hash)
+	types := []x509_cert.SanTypeName{x509_cert.SanTypeOtherName, x509_cert.SanTypePermanentIdentifierValue, x509_cert.SanTypePermanentIdentifierAssigner}
+
 	tests := []struct {
 		name   string
 		fields fields
 		args   args
 		want   string
 		errMsg string
+		types  []x509_cert.SanTypeName
 	}{
 		{
 			name:   "Happy path",
 			fields: fields{},
 			args:   args{chain: chain},
 			want:   strings.Join([]string{"did", "x509", "0", alg, rootHashString, "", "san", "otherName", "A_BIG_STRING", "", "san", "permanentIdentifier.value", "A_SMALL_STRING", "", "san", "permanentIdentifier.assigner", "2.16.528.1.1007.3.3"}, ":"),
+			types:  types,
 			errMsg: "",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := CreateDid(tt.args.chain[0], tt.args.chain[len(tt.args.chain)-1])
+			got, err := CreateDid(tt.args.chain[0], tt.args.chain[len(tt.args.chain)-1], tt.types...)
 			wantErr := tt.errMsg != ""
 			if (err != nil) != wantErr {
 				t.Errorf("DefaultDidProcessor.CreateDid() error = %v, errMsg %v", err, tt.errMsg)

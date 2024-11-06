@@ -324,7 +324,7 @@ func TestIssue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := Issue(tt.certFile, tt.keyFile, tt.subjectDID, tt.allowTest)
+			result, err := Issue(tt.certFile, tt.keyFile, tt.subjectDID, tt.allowTest, true)
 			if err != nil {
 				if err.Error() != tt.errorText {
 					t.Errorf("Issue() error = '%v', wantErr '%v'", err.Error(), tt.errorText)

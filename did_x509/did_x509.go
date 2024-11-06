@@ -8,6 +8,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/uzi-did-x509-issuer/x509_cert"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -34,12 +35,18 @@ func FormatDid(caCert *x509.Certificate, policy ...string) (string, error) {
 // CreateDid generates a Decentralized Identifier (DID) from a given certificate chain.
 // It extracts the Unique Registration Address (URA) from the chain, creates a policy with it, and formats the DID.
 // Returns the generated DID or an error if any step fails.
-func CreateDid(signingCert, caCert *x509.Certificate) (string, error) {
+func CreateDid(signingCert, caCert *x509.Certificate, types ...x509_cert.SanTypeName) (string, error) {
 	otherNames, err := x509_cert.FindSanTypes(signingCert)
 	if err != nil {
 		return "", err
 	}
-	policies := CreatePolicies(otherNames)
+	var selectedOtherNames []*x509_cert.OtherNameValue
+	for _, otherName := range otherNames {
+		if slices.Contains(types, otherName.Type) {
+			selectedOtherNames = append(selectedOtherNames, otherName)
+		}
+	}
+	policies := CreatePolicies(selectedOtherNames)
 	formattedDid, err := FormatDid(caCert, policies...)
 	return formattedDid, err
 }
