@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"github.com/alecthomas/kong"
 	"github.com/nuts-foundation/uzi-did-x509-issuer/uzi_vc_issuer"
@@ -93,9 +94,24 @@ func main() {
 			fmt.Println(err)
 			os.Exit(-1)
 		}
-		println(jwt)
+		printLineAndFlush(jwt)
 	default:
 		fmt.Println("Unknown command")
+		os.Exit(-1)
+	}
+}
+
+// printLineAndFlush writes a JWT (JSON Web Token) to the standard output and flushes the buffered writer.
+func printLineAndFlush(jwt string) {
+	f := bufio.NewWriter(os.Stdout)
+	// Make sure to flush
+	defer func(f *bufio.Writer) {
+		_ = f.Flush()
+	}(f)
+	// Write the JWT
+	_, err := f.WriteString(jwt + "\n")
+	if err != nil {
+		fmt.Println(err)
 		os.Exit(-1)
 	}
 }
