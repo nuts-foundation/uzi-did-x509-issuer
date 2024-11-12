@@ -10,11 +10,12 @@ import (
 )
 
 type VC struct {
-	CertificateFile  string `arg:"" name:"certificate_file" help:"Certificate PEM file. If the file contains a chain, the chain will be used for signing." type:"existingfile"`
-	SigningKey       string `arg:"" name:"signing_key" help:"PEM key for signing." type:"existingfile"`
-	SubjectDID       string `arg:"" name:"subject_did" help:"The subject DID of the VC." type:"key"`
-	Test             bool   `short:"t" help:"Allow for certificates signed by the TEST UZI Root CA."`
-	IncludePermanent bool   `short:"p" help:"Include the permanent identifier in the did:x509."`
+	CertificateFile   string                      `arg:"" name:"certificate_file" help:"Certificate PEM file. If the file contains a chain, the chain will be used for signing." type:"existingfile"`
+	SigningKey        string                      `arg:"" name:"signing_key" help:"PEM key for signing." type:"existingfile"`
+	SubjectDID        string                      `arg:"" name:"subject_did" help:"The subject DID of the VC."`
+	SubjectAttributes []x509_cert.SubjectTypeName `short:"s" name:"subject_attr" help:"A list of Subject Attributes u in the VC." default:"O,L"`
+	Test              bool                        `short:"t" help:"Allow for certificates signed by the TEST UZI Root CA."`
+	IncludePermanent  bool                        `short:"p" help:"Include the permanent identifier in the did:x509."`
 }
 
 type TestCert struct {
@@ -122,5 +123,5 @@ func printLineAndFlush(jwt string) error {
 }
 
 func issueVc(vc VC) (string, error) {
-	return uzi_vc_issuer.Issue(vc.CertificateFile, vc.SigningKey, vc.SubjectDID, vc.Test, vc.IncludePermanent)
+	return uzi_vc_issuer.Issue(vc.CertificateFile, vc.SigningKey, vc.SubjectDID, vc.Test, vc.IncludePermanent, vc.SubjectAttributes)
 }

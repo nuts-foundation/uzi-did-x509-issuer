@@ -99,7 +99,7 @@ func TestBuildUraVerifiableCredential(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			certificates := clo.Clone(_certs).([]*x509.Certificate)
 			certificates, signingKey, subjectDID := tt.in(certificates)
-			_, err := BuildUraVerifiableCredential(certificates, signingKey, subjectDID)
+			_, err := BuildUraVerifiableCredential(certificates, signingKey, subjectDID, []x509_cert.SubjectTypeName{})
 			if err != nil {
 				if err.Error() != tt.errorText {
 					t.Errorf("BuildUraVerifiableCredential() error = '%v', wantErr '%v'", err.Error(), tt.errorText)
@@ -324,7 +324,7 @@ func TestIssue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := Issue(tt.certFile, tt.keyFile, tt.subjectDID, tt.allowTest, true)
+			result, err := Issue(tt.certFile, tt.keyFile, tt.subjectDID, tt.allowTest, true, make([]x509_cert.SubjectTypeName, 0))
 			if err != nil {
 				if err.Error() != tt.errorText {
 					t.Errorf("Issue() error = '%v', wantErr '%v'", err.Error(), tt.errorText)

@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/uzi-did-x509-issuer/x509_cert"
+	"net/url"
 	"regexp"
-	"slices"
 	"strings"
 )
 
@@ -16,7 +16,7 @@ type X509Did struct {
 	Version                string
 	RootCertificateHash    string
 	RootCertificateHashAlg string
-	Policies               []*x509_cert.OtherNameValue
+	Policies               []*x509_cert.GenericNameValue
 }
 
 // FormatDid constructs a decentralized identifier (DID) from a certificate chain and an optional policy.
@@ -35,18 +35,17 @@ func FormatDid(caCert *x509.Certificate, policy ...string) (string, error) {
 // CreateDid generates a Decentralized Identifier (DID) from a given certificate chain.
 // It extracts the Unique Registration Address (URA) from the chain, creates a policy with it, and formats the DID.
 // Returns the generated DID or an error if any step fails.
-func CreateDid(signingCert, caCert *x509.Certificate, types ...x509_cert.SanTypeName) (string, error) {
-	otherNames, err := x509_cert.FindSanTypes(signingCert)
+func CreateDid(signingCert, caCert *x509.Certificate, subjectAttributes []x509_cert.SubjectTypeName, types ...x509_cert.SanTypeName) (string, error) {
+	otherNames, err := x509_cert.SelectSanTypes(signingCert, types...)
 	if err != nil {
 		return "", err
 	}
-	var selectedOtherNames []*x509_cert.OtherNameValue
-	for _, otherName := range otherNames {
-		if slices.Contains(types, otherName.Type) {
-			selectedOtherNames = append(selectedOtherNames, otherName)
-		}
-	}
-	policies := CreatePolicies(selectedOtherNames)
+	policies := CreateOtherNamePolicies(otherNames)
+
+	subjectTypes, err := x509_cert.SelectSubjectTypes(signingCert, subjectAttributes...)
+
+	policies = append(policies, CreateSubjectPolicies(subjectTypes)...)
+
 	formattedDid, err := FormatDid(caCert, policies...)
 	return formattedDid, err
 }
@@ -78,22 +77,38 @@ func ParseDid(didString string) (*X509Did, error) {
 		if len(submatch) != 4 {
 			return nil, errors.New("invalid didString format, expected didString:x509:0:alg:hash::san:type:ura")
 		}
-		x509Did.Policies = append(x509Did.Policies, &x509_cert.OtherNameValue{
+		value, err := url.PathUnescape(submatch[3])
+		if err != nil {
+			return nil, err
+		}
+		x509Did.Policies = append(x509Did.Policies, &x509_cert.GenericNameValue{
 			PolicyType: x509_cert.PolicyType(submatch[1]),
-			Type:       x509_cert.SanTypeName(submatch[2]),
-			Value:      submatch[3],
+			Type:       submatch[2],
+			Value:      value,
 		})
 	}
 
 	return &x509Did, nil
 }
 
-// CreatePolicies constructs a policy string using the provided URA, fixed string "san", and "permanentIdentifier".
+// CreateOtherNamePolicies constructs a policy string using the provided URA, fixed string "san", and "permanentIdentifier".
 // It joins these components with colons and returns the resulting policy string.
-func CreatePolicies(otherNames []*x509_cert.OtherNameValue) []string {
+func CreateOtherNamePolicies(otherNames []*x509_cert.OtherNameValue) []string {
 	var policies []string
 	for _, otherName := range otherNames {
-		fragments := []string{string(otherName.PolicyType), string(otherName.Type), otherName.Value}
+		value := url.PathEscape(otherName.Value)
+		fragments := []string{string(otherName.PolicyType), string(otherName.Type), value}
+		policy := strings.Join(fragments, ":")
+		policies = append(policies, policy)
+	}
+	return policies
+}
+
+func CreateSubjectPolicies(subjectValues []*x509_cert.SubjectValue) []string {
+	var policies []string
+	for _, subjectValue := range subjectValues {
+		value := url.PathEscape(subjectValue.Value)
+		fragments := []string{string(subjectValue.PolicyType), string(subjectValue.Type), value}
 		policy := strings.Join(fragments, ":")
 		policies = append(policies, policy)
 	}
