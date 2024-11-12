@@ -6,7 +6,6 @@ import (
 	"crypto/sha1"
 	"crypto/x509"
 	"encoding/base64"
-	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -77,14 +76,8 @@ func Issue(certificateFile string, signingKeyFile string, subjectDID string, all
 	if err != nil {
 		return "", err
 	}
-	credentialJSON, err := json.Marshal(credential)
-	if err != nil {
-		return "", err
-	}
+	jwtString := credential.Raw()
 	validator := uzi_vc_validator.NewUraValidator(allowTestUraCa, allowSelfSignedCa)
-	jwtString := string(credentialJSON)
-	jwtString = jwtString[1:]                // Chop start
-	jwtString = jwtString[:len(jwtString)-1] // Chop end
 	err = validator.Validate(jwtString)
 	if err != nil {
 		return "", err

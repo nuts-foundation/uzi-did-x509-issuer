@@ -4,7 +4,6 @@ import (
 	"crypto/sha1"
 	"crypto/x509"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"github.com/lestrrat-go/jwx/v2/cert"
 	"github.com/lestrrat-go/jwx/v2/jwa"
@@ -38,9 +37,7 @@ type JwtHeaderValues struct {
 }
 
 func (u UraValidatorImpl) Validate(jwtString string) error {
-	credential := &vc.VerifiableCredential{}
-	marshal, _ := json.Marshal(jwtString)
-	err := json.Unmarshal(marshal, credential)
+	credential, err := vc.ParseVerifiableCredential(jwtString)
 	if err != nil {
 		return err
 	}
