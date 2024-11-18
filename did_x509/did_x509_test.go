@@ -31,57 +31,58 @@ func TestDefaultDidCreator_CreateDidSingle(t *testing.T) {
 	types := []x509_cert.SanTypeName{x509_cert.SanTypeOtherName, x509_cert.SanTypePermanentIdentifierValue, x509_cert.SanTypePermanentIdentifierAssigner}
 
 	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   string
-		errMsg string
-		types  []x509_cert.SanTypeName
+		name         string
+		fields       fields
+		args         args
+		want         string
+		errMsg       string
+		sanTypes     []x509_cert.SanTypeName
+		subjectTypes []x509_cert.SubjectTypeName
 	}{
 		{
-			name:   "Happy path",
-			fields: fields{},
-			args:   args{chain: chain},
-			want:   strings.Join([]string{"did", "x509", "0", alg, rootHashString, "", "san", "otherName", "A_BIG_STRING", "", "san", "permanentIdentifier.value", "A_PERMANENT_STRING", "", "san", "permanentIdentifier.assigner", "2.16.528.1.1007.3.3"}, ":"),
-			types:  types,
-			errMsg: "",
+			name:     "Happy path",
+			fields:   fields{},
+			args:     args{chain: chain},
+			want:     strings.Join([]string{"did", "x509", "0", alg, rootHashString, "", "san", "otherName", "A_BIG_STRING", "", "san", "permanentIdentifier.value", "A_PERMANENT_STRING", "", "san", "permanentIdentifier.assigner", "2.16.528.1.1007.3.3"}, ":"),
+			sanTypes: types,
+			errMsg:   "",
 		},
 		{
-			name:   "Happy path",
-			fields: fields{},
-			args:   args{chain: chain},
-			want:   strings.Join([]string{"did", "x509", "0", alg, rootHashString, "", "san", "otherName", "A_BIG_STRING", "", "san", "permanentIdentifier.value", "A_PERMANENT_STRING"}, ":"),
-			types:  []x509_cert.SanTypeName{x509_cert.SanTypeOtherName, x509_cert.SanTypePermanentIdentifierValue},
-			errMsg: "",
+			name:     "Happy path",
+			fields:   fields{},
+			args:     args{chain: chain},
+			want:     strings.Join([]string{"did", "x509", "0", alg, rootHashString, "", "san", "otherName", "A_BIG_STRING", "", "san", "permanentIdentifier.value", "A_PERMANENT_STRING"}, ":"),
+			sanTypes: []x509_cert.SanTypeName{x509_cert.SanTypeOtherName, x509_cert.SanTypePermanentIdentifierValue},
+			errMsg:   "",
 		},
 		{
-			name:   "Happy path",
-			fields: fields{},
-			args:   args{chain: chain},
-			want:   strings.Join([]string{"did", "x509", "0", alg, rootHashString, "", "san", "otherName", "A_BIG_STRING"}, ":"),
-			types:  []x509_cert.SanTypeName{x509_cert.SanTypeOtherName},
-			errMsg: "",
+			name:     "Happy path",
+			fields:   fields{},
+			args:     args{chain: chain},
+			want:     strings.Join([]string{"did", "x509", "0", alg, rootHashString, "", "san", "otherName", "A_BIG_STRING"}, ":"),
+			sanTypes: []x509_cert.SanTypeName{x509_cert.SanTypeOtherName},
+			errMsg:   "",
 		},
 		{
-			name:   "Happy path",
-			fields: fields{},
-			args:   args{chain: chain},
-			want:   strings.Join([]string{"did", "x509", "0", alg, rootHashString, "", "san", "permanentIdentifier.value", "A_PERMANENT_STRING"}, ":"),
-			types:  []x509_cert.SanTypeName{x509_cert.SanTypePermanentIdentifierValue},
-			errMsg: "",
+			name:     "Happy path",
+			fields:   fields{},
+			args:     args{chain: chain},
+			want:     strings.Join([]string{"did", "x509", "0", alg, rootHashString, "", "san", "permanentIdentifier.value", "A_PERMANENT_STRING"}, ":"),
+			sanTypes: []x509_cert.SanTypeName{x509_cert.SanTypePermanentIdentifierValue},
+			errMsg:   "",
 		},
 		{
-			name:   "Happy path",
-			fields: fields{},
-			args:   args{chain: chain},
-			want:   strings.Join([]string{"did", "x509", "0", alg, rootHashString, "", "san", "permanentIdentifier.assigner", "2.16.528.1.1007.3.3"}, ":"),
-			types:  []x509_cert.SanTypeName{x509_cert.SanTypePermanentIdentifierAssigner},
-			errMsg: "",
+			name:     "Happy path",
+			fields:   fields{},
+			args:     args{chain: chain},
+			want:     strings.Join([]string{"did", "x509", "0", alg, rootHashString, "", "san", "permanentIdentifier.assigner", "2.16.528.1.1007.3.3"}, ":"),
+			sanTypes: []x509_cert.SanTypeName{x509_cert.SanTypePermanentIdentifierAssigner},
+			errMsg:   "",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := CreateDid(tt.args.chain[0], tt.args.chain[len(tt.args.chain)-1], tt.types...)
+			got, err := CreateDid(tt.args.chain[0], tt.args.chain[len(tt.args.chain)-1], tt.subjectTypes, tt.sanTypes...)
 			wantErr := tt.errMsg != ""
 			if (err != nil) != wantErr {
 				t.Errorf("DefaultDidProcessor.CreateDid() error = %v, errMsg %v", err, tt.errMsg)
@@ -115,28 +116,56 @@ func TestDefaultDidCreator_CreateDidDouble(t *testing.T) {
 		t.Fatal(err)
 	}
 	rootHashString := base64.RawURLEncoding.EncodeToString(hash)
-	types := []x509_cert.SanTypeName{x509_cert.SanTypeOtherName, x509_cert.SanTypePermanentIdentifierValue, x509_cert.SanTypePermanentIdentifierAssigner}
+	sanTypeNames := []x509_cert.SanTypeName{x509_cert.SanTypeOtherName, x509_cert.SanTypePermanentIdentifierValue, x509_cert.SanTypePermanentIdentifierAssigner}
+	sanTypeNamesShort := []x509_cert.SanTypeName{x509_cert.SanTypeOtherName}
+	subjectTypeNamesShort := []x509_cert.SubjectTypeName{x509_cert.SubjectTypeOrganization}
 
 	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   string
-		errMsg string
-		types  []x509_cert.SanTypeName
+		name         string
+		fields       fields
+		args         args
+		want         string
+		errMsg       string
+		sanTypes     []x509_cert.SanTypeName
+		subjectTypes []x509_cert.SubjectTypeName
 	}{
 		{
-			name:   "Happy path",
-			fields: fields{},
-			args:   args{chain: chain},
-			want:   strings.Join([]string{"did", "x509", "0", alg, rootHashString, "", "san", "otherName", "A_BIG_STRING", "", "san", "permanentIdentifier.value", "A_SMALL_STRING", "", "san", "permanentIdentifier.assigner", "2.16.528.1.1007.3.3"}, ":"),
-			types:  types,
-			errMsg: "",
+			name:     "Happy path san",
+			fields:   fields{},
+			args:     args{chain: chain},
+			want:     strings.Join([]string{"did", "x509", "0", alg, rootHashString, "", "san", "otherName", "A_BIG_STRING", "", "san", "permanentIdentifier.value", "A_SMALL_STRING", "", "san", "permanentIdentifier.assigner", "2.16.528.1.1007.3.3"}, ":"),
+			sanTypes: sanTypeNames,
+			errMsg:   "",
+		},
+		{
+			name:     "Happy path short san",
+			fields:   fields{},
+			args:     args{chain: chain},
+			want:     strings.Join([]string{"did", "x509", "0", alg, rootHashString, "", "san", "otherName", "A_BIG_STRING"}, ":"),
+			sanTypes: sanTypeNamesShort,
+			errMsg:   "",
+		},
+		{
+			name:         "Happy path short san",
+			fields:       fields{},
+			args:         args{chain: chain},
+			want:         strings.Join([]string{"did", "x509", "0", alg, rootHashString, "", "subject", "O", "FauxCare"}, ":"),
+			subjectTypes: subjectTypeNamesShort,
+			errMsg:       "",
+		},
+		{
+			name:         "Happy path mixed",
+			fields:       fields{},
+			args:         args{chain: chain},
+			want:         strings.Join([]string{"did", "x509", "0", alg, rootHashString, "", "san", "otherName", "A_BIG_STRING", "", "subject", "O", "FauxCare"}, ":"),
+			sanTypes:     sanTypeNamesShort,
+			subjectTypes: subjectTypeNamesShort,
+			errMsg:       "",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := CreateDid(tt.args.chain[0], tt.args.chain[len(tt.args.chain)-1], tt.types...)
+			got, err := CreateDid(tt.args.chain[0], tt.args.chain[len(tt.args.chain)-1], tt.subjectTypes, tt.sanTypes...)
 			wantErr := tt.errMsg != ""
 			if (err != nil) != wantErr {
 				t.Errorf("DefaultDidProcessor.CreateDid() error = %v, errMsg %v", err, tt.errMsg)
@@ -157,7 +186,7 @@ func TestDefaultDidCreator_CreateDidDouble(t *testing.T) {
 // TestDefaultDidCreator_ParseDid tests the ParseDid function of DefaultDidProcessor by providing different DID strings.
 // It checks for correct X509Did parsing and appropriate error messages.
 func TestDefaultDidCreator_ParseDid(t *testing.T) {
-	policies := []*x509_cert.OtherNameValue{
+	policies := []*x509_cert.GenericNameValue{
 		{
 			PolicyType: "san",
 			Type:       "otherName",

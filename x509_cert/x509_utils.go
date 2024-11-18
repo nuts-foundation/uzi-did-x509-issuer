@@ -7,6 +7,7 @@ import (
 	"encoding/asn1"
 	"errors"
 	"fmt"
+	"slices"
 )
 
 type OtherName struct {
@@ -22,7 +23,8 @@ type StingAndOid struct {
 type PolicyType string
 
 const (
-	PolicyTypeSan PolicyType = "san"
+	PolicyTypeSan     PolicyType = "san"
+	PolicyTypeSubject PolicyType = "subject"
 )
 
 type SanType pkix.AttributeTypeAndValue
@@ -35,10 +37,79 @@ const (
 	SanTypePermanentIdentifierAssigner SanTypeName = "permanentIdentifier.assigner"
 )
 
+type SubjectTypeName string
+
+const (
+	SubjectTypeCommonName         SubjectTypeName = "CN"
+	SubjectTypeOrganization       SubjectTypeName = "O"
+	SubjectTypeOrganizationalUnit SubjectTypeName = "OU"
+	SubjectTypeCountry            SubjectTypeName = "C"
+	SubjectTypeLocality           SubjectTypeName = "L"
+	SubjectTypeProvince           SubjectTypeName = "ST"
+	SubjectTypeStreetAddress      SubjectTypeName = "STREET"
+	SubjectTypeSerialNumber       SubjectTypeName = "serialNumber"
+)
+
+type GenericNameValue struct {
+	PolicyType PolicyType
+	Type       string
+	Value      string
+}
+
 type OtherNameValue struct {
 	PolicyType PolicyType
 	Type       SanTypeName
 	Value      string
+}
+
+type SubjectValue struct {
+	PolicyType PolicyType
+	Type       SubjectTypeName
+	Value      string
+}
+
+func FindSubjectTypes(certificate *x509.Certificate) ([]*SubjectValue, error) {
+	rv := make([]*SubjectValue, 0)
+	if certificate == nil {
+		return nil, errors.New("certificate is nil")
+	}
+	rv = append(rv, getStringListSubjectValues(SubjectTypeCommonName, certificate.Subject.CommonName)...)
+	rv = append(rv, getStringListSubjectValues(SubjectTypeOrganization, certificate.Subject.Organization...)...)
+	rv = append(rv, getStringListSubjectValues(SubjectTypeOrganizationalUnit, certificate.Subject.OrganizationalUnit...)...)
+	rv = append(rv, getStringListSubjectValues(SubjectTypeCountry, certificate.Subject.Country...)...)
+	rv = append(rv, getStringListSubjectValues(SubjectTypeLocality, certificate.Subject.Locality...)...)
+	rv = append(rv, getStringListSubjectValues(SubjectTypeProvince, certificate.Subject.Province...)...)
+	rv = append(rv, getStringListSubjectValues(SubjectTypeStreetAddress, certificate.Subject.StreetAddress...)...)
+	rv = append(rv, getStringListSubjectValues(SubjectTypeSerialNumber, certificate.Subject.SerialNumber)...)
+	return rv, nil
+}
+
+func SelectSubjectTypes(certificate *x509.Certificate, subjectAttributes ...SubjectTypeName) ([]*SubjectValue, error) {
+	subjectTypes, err := FindSubjectTypes(certificate)
+	if err != nil {
+		return nil, err
+	}
+	var selectedSubjectTypes []*SubjectValue
+	for _, subjectType := range subjectTypes {
+		if slices.Contains(subjectAttributes, subjectType.Type) {
+			selectedSubjectTypes = append(selectedSubjectTypes, subjectType)
+		}
+	}
+	return selectedSubjectTypes, nil
+}
+
+func getStringListSubjectValues(subjectType SubjectTypeName, values ...string) []*SubjectValue {
+	rv := make([]*SubjectValue, 0)
+	if len(values) > 0 {
+		for _, c := range values {
+			rv = append(rv, &SubjectValue{
+				PolicyType: PolicyTypeSubject,
+				Type:       subjectType,
+				Value:      c,
+			})
+		}
+	}
+	return rv
 }
 
 func FindSanTypes(certificate *x509.Certificate) ([]*OtherNameValue, error) {
@@ -81,6 +152,20 @@ func FindSanTypes(certificate *x509.Certificate) ([]*OtherNameValue, error) {
 		return nil, err
 	}
 	return rv, nil
+}
+
+func SelectSanTypes(certificate *x509.Certificate, subjectAttributes ...SanTypeName) ([]*OtherNameValue, error) {
+	subjectTypes, err := FindSanTypes(certificate)
+	if err != nil {
+		return nil, err
+	}
+	var selectedSubjectTypes []*OtherNameValue
+	for _, subjectType := range subjectTypes {
+		if slices.Contains(subjectAttributes, subjectType.Type) {
+			selectedSubjectTypes = append(selectedSubjectTypes, subjectType)
+		}
+	}
+	return selectedSubjectTypes, nil
 }
 
 func FindOtherNameValue(value []*OtherNameValue, policyType PolicyType, sanTypeName SanTypeName) (string, error) {

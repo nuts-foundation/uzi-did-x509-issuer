@@ -11,16 +11,18 @@ fi
 
 mkdir out
 HOST=$1
-UZI=$2
-URA=$3
-AGB=$4
+X509_O=$2
+X509_L=$3
+UZI=$4
+URA=$5
+AGB=$6
 echo Generating key and certificate for $HOST
 openssl genrsa -out out/$HOST.key 2048
-openssl req -new -key out/$HOST.key -out $HOST.csr -subj "${DN_PREFIX}CN=${HOST}/serialNumber=${UZI}"
+openssl req -new -key out/$HOST.key -out $HOST.csr -subj "${DN_PREFIX}CN=${HOST}/O=${X509_O}/L=${X509_L}/serialNumber=${UZI}"
 
 local_openssl_config="
 extendedKeyUsage = serverAuth, clientAuth
-subjectAltName = DNS:${HOST}, otherName:2.5.5.5;UTF8:2.16.528.1.1007.99.2110-1-${UZI}-S-${URA}-00.000-${AGB}
+subjectAltName = otherName:2.5.5.5;UTF8:2.16.528.1.1007.99.2110-1-${UZI}-S-${URA}-00.000-${AGB}
 "
 cat <<< "$local_openssl_config" > node.ext
 openssl x509 -req -in $HOST.csr -CA ca.pem -CAkey ca.key -CAcreateserial -out out/$HOST.pem -days 365 -sha256 \

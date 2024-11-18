@@ -77,17 +77,14 @@ func (u UraValidatorImpl) Validate(jwtString string) error {
 	if err != nil {
 		return err
 	}
+	subjectTypes, err := x509_cert.FindSubjectTypes(signingCert)
+	if err != nil {
+		return err
+	}
 	for _, policy := range parseDid.Policies {
-		found := false
-		for _, otherName := range otherNames {
-			if otherName.Type == policy.Type && otherName.PolicyType == policy.PolicyType {
-				if policy.Value != otherName.Value {
-					return fmt.Errorf("%s value %s of policy %s in credential does not match according value in signing certificate", otherName.Type, otherName.Type, otherName.PolicyType)
-				} else {
-					found = true
-					break
-				}
-			}
+		found, err := checkForPolicy(policy, otherNames, subjectTypes)
+		if err != nil {
+			return err
 		}
 		if !found {
 			return fmt.Errorf("unable to locate a value for %s of policy %s", policy.Type, policy.PolicyType)
@@ -95,6 +92,51 @@ func (u UraValidatorImpl) Validate(jwtString string) error {
 
 	}
 	return nil
+}
+
+func checkForPolicy(policy *x509_cert.GenericNameValue, otherNames []*x509_cert.OtherNameValue, subjectTypes []*x509_cert.SubjectValue) (bool, error) {
+	switch policy.PolicyType {
+	case x509_cert.PolicyTypeSan:
+		found, err := checkForOtherNamePolicy(otherNames, policy)
+		if err != nil {
+			return false, err
+		}
+		return found, nil
+	case x509_cert.PolicyTypeSubject:
+		found, err := checkForSubjectPolicy(subjectTypes, policy)
+		if err != nil {
+			return false, err
+		}
+		return found, nil
+	default:
+		return false, fmt.Errorf("unknown policy type %s", policy.PolicyType)
+	}
+}
+
+func checkForSubjectPolicy(subjectTypes []*x509_cert.SubjectValue, policy *x509_cert.GenericNameValue) (bool, error) {
+	for _, subjectType := range subjectTypes {
+		if string(subjectType.Type) == policy.Type && subjectType.PolicyType == policy.PolicyType {
+			if policy.Value != subjectType.Value {
+				return false, fmt.Errorf("%s value %s of policy %s in credential does not match according value in signing certificate", subjectType.Type, subjectType.Type, subjectType.PolicyType)
+			} else {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
+}
+
+func checkForOtherNamePolicy(otherNames []*x509_cert.OtherNameValue, policy *x509_cert.GenericNameValue) (bool, error) {
+	for _, otherName := range otherNames {
+		if string(otherName.Type) == policy.Type && otherName.PolicyType == policy.PolicyType {
+			if policy.Value != otherName.Value {
+				return false, fmt.Errorf("%s value %s of policy %s in credential does not match according value in signing certificate", otherName.Type, otherName.Type, otherName.PolicyType)
+			} else {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
 }
 
 // func validateChain(signingCert *x509.Certificate, certificates []*x509.Certificate, includeTest bool) error {
