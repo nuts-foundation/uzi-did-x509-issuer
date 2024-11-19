@@ -19,13 +19,13 @@ RUN apk update \
 ENV GO111MODULE=on
 ENV GOPATH=/
 
-RUN mkdir /opt/pki-overheid-issuer && cd /opt/pki-overheid-issuer
+RUN mkdir /opt/uzi-servercertificaat-issuer && cd /opt/uzi-servercertificaat-issuer
 COPY go.mod .
 COPY go.sum .
 RUN go mod download && go mod verify
 
 COPY . .
-RUN GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags="-w -s " -o /opt/pki-overheid-issuer/pki-overheid-issuer
+RUN GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags="-w -s " -o /opt/uzi-servercertificaat-issuer/issuer
 
 # alpine
 FROM alpine:3.20.3
@@ -34,12 +34,11 @@ RUN apk update \
              tzdata \
              curl \
   && update-ca-certificates
-COPY --from=builder /opt/pki-overheid-issuer/pki-overheid-issuer /usr/bin/pki-overheid-issuer
+COPY --from=builder /opt/uzi-servercertificaat-issuer/issuer /usr/bin/issuer
 
-RUN adduser -D -H -u 18081 pki-overheid-issuer-usr
+RUN adduser -D -H -u 18081 issuer-usr
 USER 18081:18081
-WORKDIR /pki-overheid-issuer
-ENTRYPOINT ["/usr/bin/pki-overheid-issuer"]
+ENTRYPOINT ["/usr/bin/issuer"]
 CMD ["--help"]
 
 
