@@ -5,12 +5,12 @@ on:
   push:
     branches:
       - master
+      - build-images # remove when merged
     tags:
       - 'v*'
   pull_request:
     branches:
       - master
-      - build-images # remove when merged
 
 # cancel build action if superseded by new commit on same branch
 concurrency:
