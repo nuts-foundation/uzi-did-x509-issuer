@@ -9,6 +9,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/go-did/did"
 	"time"
 
 	"github.com/google/uuid"
@@ -119,7 +120,7 @@ func BuildUraVerifiableCredential(chain []*x509.Certificate, signingKey *rsa.Pri
 	if uzi != serialNumber {
 		return nil, errors.New("serial number does not match UZI number")
 	}
-	template, err := uraCredential(did, otherNameValues, subjectTypes, subjectDID)
+	template, err := uraCredential(did, signingCert.NotAfter, otherNameValues, subjectTypes, subjectDID)
 	if err != nil {
 		return nil, err
 	}
@@ -264,8 +265,7 @@ func convertHeaders(headers map[string]interface{}) (jws.Headers, error) {
 
 // uraCredential generates a VerifiableCredential for a given URA and UZI number, including the subject's DID.
 // It sets a 1-year expiration period from the current issuance date.
-func uraCredential(issuer string, otherNameValues []*x509_cert.OtherNameValue, subjectTypes []*x509_cert.SubjectValue, subjectDID string) (*vc.VerifiableCredential, error) {
-	exp := time.Now().Add(time.Hour * 24 * 365 * 100)
+func uraCredential(issuer string, expirationDate time.Time, otherNameValues []*x509_cert.OtherNameValue, subjectTypes []*x509_cert.SubjectValue, subjectDID string) (*vc.VerifiableCredential, error) {
 	iat := time.Now()
 	subject := map[string]interface{}{
 		"id": subjectDID,
@@ -278,13 +278,17 @@ func uraCredential(issuer string, otherNameValues []*x509_cert.OtherNameValue, s
 		subject[string(subjectType.Type)] = subjectType.Value
 	}
 
+	id := did.DIDURL{
+		DID:      did.MustParseDID(issuer),
+		Fragment: uuid.NewString(),
+	}.URI()
 	return &vc.VerifiableCredential{
 		Issuer:            ssi.MustParseURI(issuer),
 		Context:           []ssi.URI{ssi.MustParseURI("https://www.w3.org/2018/credentials/v1")},
 		Type:              []ssi.URI{ssi.MustParseURI("VerifiableCredential"), ssi.MustParseURI("UziServerCertificateCredential")},
-		ID:                func() *ssi.URI { id := ssi.MustParseURI(uuid.NewString()); return &id }(),
+		ID:                &id,
 		IssuanceDate:      iat,
-		ExpirationDate:    &exp,
+		ExpirationDate:    &expirationDate,
 		CredentialSubject: []interface{}{subject},
 	}, nil
 }

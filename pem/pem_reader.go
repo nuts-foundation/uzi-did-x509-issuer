@@ -2,7 +2,6 @@ package pem
 
 import (
 	"encoding/pem"
-	"fmt"
 	"os"
 )
 
@@ -38,7 +37,6 @@ func ParseFileOrPath(path string, pemType string) ([][]byte, error) {
 
 // readFile reads a file from the given filename, parses it for PEM blocks of the specified type, and returns the blocks.
 func readFile(filename string, pemType string) ([][]byte, error) {
-	fmt.Println("filename: ", filename)
 	files := make([][]byte, 0)
 	content, err := os.ReadFile(filename)
 	if err != nil {

@@ -13,8 +13,9 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/uzi-did-x509-issuer/x509_cert"
+	"github.com/stretchr/testify/require"
 	"os"
-	"slices"
+	"strings"
 	"testing"
 )
 
@@ -231,7 +232,7 @@ func TestIssue(t *testing.T) {
 	failError(t, err)
 	identifier := "2.16.528.1.1007.99.2110-1-900030787-S-90000380-00.000-11223344"
 	ura := "90000380"
-	chain, _, rootCert, privKey, _, err := x509_cert.BuildSelfSignedCertChain(identifier, ura)
+	chain, _, rootCert, privKey, signingCert, err := x509_cert.BuildSelfSignedCertChain(identifier, ura)
 	bytesRootHash := sha512.Sum512(rootCert.Raw)
 	rootHash := base64.RawURLEncoding.EncodeToString(bytesRootHash[:])
 	failError(t, err)
@@ -286,9 +287,10 @@ func TestIssue(t *testing.T) {
 			subjectDID: "did:example:123",
 			allowTest:  true,
 			out: &vc.VerifiableCredential{
-				Context: []ssi.URI{ssi.MustParseURI("https://www.w3.org/2018/credentials/v1")},
-				Issuer:  did.MustParseDID(fmt.Sprintf("did:x509:0:sha512:%s::san:otherName:%s::san:permanentIdentifier.value:%s::san:permanentIdentifier.assigner:%s", rootHash, identifier, ura, x509_cert.UraAssigner.String())).URI(),
-				Type:    []ssi.URI{ssi.MustParseURI("VerifiableCredential"), ssi.MustParseURI("UziServerCertificateCredential")},
+				Context:        []ssi.URI{ssi.MustParseURI("https://www.w3.org/2018/credentials/v1")},
+				Issuer:         did.MustParseDID(fmt.Sprintf("did:x509:0:sha512:%s::san:otherName:%s::san:permanentIdentifier.value:%s::san:permanentIdentifier.assigner:%s", rootHash, identifier, ura, x509_cert.UraAssigner.String())).URI(),
+				Type:           []ssi.URI{ssi.MustParseURI("VerifiableCredential"), ssi.MustParseURI("UziServerCertificateCredential")},
+				ExpirationDate: toPtr(signingCert.NotAfter),
 			},
 			errorText: "",
 		},
@@ -335,9 +337,7 @@ func TestIssue(t *testing.T) {
 				found := vc.VerifiableCredential{}
 				err = json.Unmarshal([]byte("\""+result+"\""), &found)
 				failError(t, err)
-				if !compare(tt.out, &found) {
-					t.Errorf("Issue() expected %v, got %v", tt.out, found)
-				}
+				compare(t, tt.out, &found)
 			}
 		})
 	}
@@ -350,12 +350,13 @@ func failError(t *testing.T, err error) {
 	}
 }
 
-func compare(expected *vc.VerifiableCredential, found *vc.VerifiableCredential) bool {
-	if expected.Issuer.String() != found.Issuer.String() {
-		return false
-	}
-	if !slices.Equal(expected.Type, found.Type) {
-		return false
-	}
-	return true
+func compare(t *testing.T, expected *vc.VerifiableCredential, found *vc.VerifiableCredential) {
+	require.True(t, strings.HasPrefix(found.ID.String(), found.Issuer.String()+"#"), "credential ID must be in form <issuer DID>#<uuid>")
+	require.Equal(t, expected.Issuer.String(), found.Issuer.String(), "credential issuer mismatch")
+	require.Equal(t, expected.Type, found.Type, "credential type mismatch")
+	require.Equal(t, expected.ExpirationDate, found.ExpirationDate, "credential expiration date mismatch")
+}
+
+func toPtr[T any](v T) *T {
+	return &v
 }
