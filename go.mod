@@ -3,7 +3,7 @@ module github.com/nuts-foundation/uzi-did-x509-issuer
 go 1.23.1
 
 require (
-	github.com/alecthomas/kong v1.4.0
+	github.com/alecthomas/kong v1.5.0
 	github.com/google/uuid v1.6.0
 	github.com/huandu/go-clone v1.7.2
 	github.com/lestrrat-go/jwx/v2 v2.1.2
