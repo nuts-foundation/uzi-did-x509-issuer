@@ -12,7 +12,6 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/uzi-did-x509-issuer/ca_certs"
 	"github.com/nuts-foundation/uzi-did-x509-issuer/did_x509"
-	pem2 "github.com/nuts-foundation/uzi-did-x509-issuer/pem"
 	"github.com/nuts-foundation/uzi-did-x509-issuer/x509_cert"
 )
 
@@ -192,16 +191,17 @@ func parseCertificate(chain *cert.Chain) ([]*x509.Certificate, error) {
 	var certificates []*x509.Certificate
 	for i := 0; i < chain.Len(); i++ {
 		bytes, _ := chain.Get(i)
-		blocks := pem2.ParsePemBlocks(bytes, "CERTIFICATE")
-		for _, block := range blocks {
-			found, err := x509.ParseCertificates(block)
-			if err != nil {
-				return nil, err
-			}
-			for _, c := range found {
-				if c != nil {
-					certificates = append(certificates, c)
-				}
+		der, err := base64.StdEncoding.DecodeString(string(bytes))
+		if err != nil {
+			return nil, err
+		}
+		found, err := x509.ParseCertificates(der)
+		if err != nil {
+			return nil, err
+		}
+		for _, c := range found {
+			if c != nil {
+				certificates = append(certificates, c)
 			}
 		}
 	}

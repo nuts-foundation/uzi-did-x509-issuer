@@ -6,7 +6,6 @@ import (
 	"crypto/sha1"
 	"crypto/x509"
 	"encoding/base64"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
@@ -172,7 +171,7 @@ func BuildUraVerifiableCredential(chain []*x509.Certificate, signingKey *rsa.Pri
 func marshalChain(certificates ...*x509.Certificate) (*cert.Chain, error) {
 	chainPems := &cert.Chain{}
 	for _, certificate := range certificates {
-		err := chainPems.Add(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certificate.Raw}))
+		err := chainPems.Add([]byte(base64.StdEncoding.EncodeToString(certificate.Raw)))
 		if err != nil {
 			return nil, err
 		}
