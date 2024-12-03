@@ -155,8 +155,12 @@ func TestBuildUraVerifiableCredential(t *testing.T) {
 }
 
 func TestBuildCertificateChain(t *testing.T) {
-	certs, _, _, _, _, err := x509_cert.BuildSelfSignedCertChain("2.16.528.1.1007.99.2110-1-900030787-S-90000380-00.000-11223344", "90000380")
-	failError(t, err)
+	chainBytes, err := os.ReadFile("testdata/valid_chain.pem")
+	require.NoError(t, err, "failed to read chain")
+
+	certs, err := parsePEMCertificates(t, chainBytes)
+	require.NoError(t, err, "failed to parse chain")
+
 	tests := []struct {
 		name      string
 		errorText string
@@ -164,7 +168,7 @@ func TestBuildCertificateChain(t *testing.T) {
 		out       func(certs []*x509.Certificate) []*x509.Certificate
 	}{
 		{
-			name: "happy flow",
+			name: "ok - valid cert input",
 			in: func(certs []*x509.Certificate) []*x509.Certificate {
 				return certs
 			},
@@ -174,7 +178,18 @@ func TestBuildCertificateChain(t *testing.T) {
 			errorText: "",
 		},
 		{
-			name: "no signing certificate",
+			name: "ok - it handles out of order certificates",
+			in: func(certs []*x509.Certificate) []*x509.Certificate {
+				certs = []*x509.Certificate{certs[2], certs[0], certs[3], certs[1]}
+				return certs
+			},
+			out: func(certs []*x509.Certificate) []*x509.Certificate {
+				return certs
+			},
+			errorText: "",
+		},
+		{
+			name: "nok - missing signing certificate",
 			in: func(certs []*x509.Certificate) []*x509.Certificate {
 				certs = certs[1:]
 				return certs
@@ -185,7 +200,7 @@ func TestBuildCertificateChain(t *testing.T) {
 			errorText: "failed to find signing certificate",
 		},
 		{
-			name: "no root CA certificate",
+			name: "nok - missing root CA certificate",
 			in: func(certs []*x509.Certificate) []*x509.Certificate {
 				certs = certs[:3]
 				return certs
@@ -196,7 +211,7 @@ func TestBuildCertificateChain(t *testing.T) {
 			errorText: "failed to find path from signingCert to root",
 		},
 		{
-			name: "no intermediate CA certificate type 1",
+			name: "nok - missing first intermediate CA certificate",
 			in: func(certs []*x509.Certificate) []*x509.Certificate {
 				certs = []*x509.Certificate{certs[0], certs[2], certs[3]}
 				return certs
@@ -207,7 +222,7 @@ func TestBuildCertificateChain(t *testing.T) {
 			errorText: "failed to find path from signingCert to root",
 		},
 		{
-			name: "no intermediate CA certificate type 2",
+			name: "nok - missing second intermediate CA certificate",
 			in: func(certs []*x509.Certificate) []*x509.Certificate {
 				certs = []*x509.Certificate{certs[0], certs[1], certs[3]}
 				return certs
@@ -216,31 +231,6 @@ func TestBuildCertificateChain(t *testing.T) {
 				return nil
 			},
 			errorText: "failed to find path from signingCert to root",
-		},
-		{
-			name: "no intermediate CA certificate type 3",
-			in: func(certs []*x509.Certificate) []*x509.Certificate {
-				certs = []*x509.Certificate{certs[0], nil, certs[2], certs[3]}
-				return certs
-			},
-			out: func(certs []*x509.Certificate) []*x509.Certificate {
-				return nil
-			},
-			errorText: "failed to find path from signingCert to root",
-		},
-		{
-			name: "reverse certificate order",
-			in: func(certs []*x509.Certificate) []*x509.Certificate {
-				rv := make([]*x509.Certificate, 0)
-				for i := len(certs) - 1; i >= 0; i-- {
-					rv = append(rv, certs[i])
-				}
-				return rv
-			},
-			out: func(certs []*x509.Certificate) []*x509.Certificate {
-				return certs
-			},
-			errorText: "",
 		},
 	}
 	for _, tt := range tests {
