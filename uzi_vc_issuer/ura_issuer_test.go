@@ -7,99 +7,151 @@ import (
 	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
+	"errors"
 	"fmt"
-	clo "github.com/huandu/go-clone"
+	"os"
+	"strings"
+	"testing"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/uzi-did-x509-issuer/x509_cert"
 	"github.com/stretchr/testify/require"
-	"os"
-	"strings"
-	"testing"
 )
+
+// parsePEMCertificates parses bytes containing PEM encoded certificates and returns a list of certificates.
+func parsePEMCertificates(t *testing.T, pemBytes []byte) []*x509.Certificate {
+	t.Helper()
+	var certs []*x509.Certificate
+	for {
+		var block *pem.Block
+		block, pemBytes = pem.Decode(pemBytes)
+		if block == nil {
+			break
+		}
+		if block.Type != "CERTIFICATE" {
+			t.Error("invalid PEM block type")
+			return nil
+
+		}
+		cert, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			t.Error(err)
+			return nil
+		}
+		certs = append(certs, cert)
+	}
+	if len(certs) == 0 {
+		t.Error(errors.New("no certificates found"))
+		return nil
+	}
+	return certs
+}
+
+// parsePemPrivateKey parses bytes containing PEM encoded private key and returns the private key.
+func parsePemPrivateKey(t *testing.T, pemBytes []byte) *rsa.PrivateKey {
+	t.Helper()
+	block, _ := pem.Decode(pemBytes)
+	if block == nil {
+		t.Error(errors.New("no PEM block found"))
+		return nil
+	}
+	rv, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	if err != nil {
+		t.Error(err)
+		return nil
+	}
+	return rv
+}
 
 func TestBuildUraVerifiableCredential(t *testing.T) {
 
-	_certs, _, _, privateKey, signingCert, err := x509_cert.BuildSelfSignedCertChain("2.16.528.1.1007.99.2110-1-900030787-S-90000380-00.000-11223344", "90000380")
-	failError(t, err)
+	chainBytes, err := os.ReadFile("testdata/valid_chain.pem")
+	require.NoError(t, err, "failed to read chain")
+
+	keyBytes, err := os.ReadFile("testdata/signing_key.pem")
+	require.NoError(t, err, "failed to read signing key")
+
+	type inFn = func(t *testing.T) ([]*x509.Certificate, *rsa.PrivateKey, string)
+
+	defaultIn := func(t *testing.T) ([]*x509.Certificate, *rsa.PrivateKey, string) {
+		chain := parsePEMCertificates(t, chainBytes)
+		privKey := parsePemPrivateKey(t, keyBytes)
+		return chain, privKey, "did:example:123"
+	}
 
 	tests := []struct {
 		name      string
-		in        func(certs []*x509.Certificate) ([]*x509.Certificate, *rsa.PrivateKey, string)
+		in        inFn
 		errorText string
 	}{
 		{
-			name: "empty chain",
-			in: func(certs []*x509.Certificate) ([]*x509.Certificate, *rsa.PrivateKey, string) {
-				return []*x509.Certificate{}, privateKey, "did:example:123"
+			name:      "ok - valid chain",
+			in:        defaultIn,
+			errorText: "",
+		},
+		{
+			name: "nok - empty chain",
+			in: func(t *testing.T) ([]*x509.Certificate, *rsa.PrivateKey, string) {
+				_, privKey, didStr := defaultIn(t)
+				return []*x509.Certificate{}, privKey, didStr
 			},
 			errorText: "empty certificate chain",
 		},
 		{
-			name: "invalid signing certificate 1",
-			in: func(certs []*x509.Certificate) ([]*x509.Certificate, *rsa.PrivateKey, string) {
-				signingTmpl, err := x509_cert.SigningCertTemplate(nil, "2.16.528.1.1007.99.2110-1-900030787-S-90000380-00.000-11223344", "90000380")
-				signingTmpl.Subject.SerialNumber = "KAAS"
-				failError(t, err)
-				cert, _, err := x509_cert.CreateCert(signingTmpl, signingCert, signingCert.PublicKey, privateKey)
-				failError(t, err)
-				certs[0] = cert
-				return certs, privateKey, "did:example:123"
-			},
-			errorText: "serial number does not match UZI number",
-		},
-		{
-			name: "invalid signing certificate 2",
-			in: func(certs []*x509.Certificate) ([]*x509.Certificate, *rsa.PrivateKey, string) {
-				signingTmpl, err := x509_cert.SigningCertTemplate(nil, "2.16.528.1.1007.99.2110-1-900030787-S-90000380-00.000-11223344", "90000380")
-				signingTmpl.ExtraExtensions = make([]pkix.Extension, 0)
-				failError(t, err)
-				cert, _, err := x509_cert.CreateCert(signingTmpl, signingCert, signingCert.PublicKey, privateKey)
-				failError(t, err)
-				certs[0] = cert
-				return certs, privateKey, "did:example:123"
-			},
-			errorText: "no values found in the SAN attributes, please check if the certificate is an UZI Server Certificate",
-		},
-		{
-			name: "invalid serial number",
-			in: func(certs []*x509.Certificate) ([]*x509.Certificate, *rsa.PrivateKey, string) {
-				certificate := clo.Clone(certs[0]).(*x509.Certificate)
-				certificate.Subject.SerialNumber = ""
-				certs[0] = certificate
-				return certs, privateKey, "did:example:123"
+			name: "nok - empty serial number",
+			in: func(*testing.T) ([]*x509.Certificate, *rsa.PrivateKey, string) {
+				certs, privKey, didStr := defaultIn(t)
+				certs[0].Subject.SerialNumber = ""
+				return certs, privKey, didStr
 			},
 			errorText: "serialNumber not found in signing certificate",
 		},
 		{
-			name: "broken cert",
-			in: func(certs []*x509.Certificate) ([]*x509.Certificate, *rsa.PrivateKey, string) {
-				certs[0] = &x509.Certificate{}
-				return certs, privateKey, "did:example:123"
+			name: "nok - invalid signing serial in signing cert",
+			in: func(t *testing.T) ([]*x509.Certificate, *rsa.PrivateKey, string) {
+				certs, privKey, didStr := defaultIn(t)
+
+				certs[0].Subject.SerialNumber = "invalid-serial-number"
+				return certs, privKey, didStr
+			},
+			errorText: "serial number does not match UZI number",
+		},
+		{
+			name: "nok - invalid signing certificate 2",
+			in: func(t *testing.T) ([]*x509.Certificate, *rsa.PrivateKey, string) {
+				certs, privKey, didStr := defaultIn(t)
+
+				certs[0].ExtraExtensions = make([]pkix.Extension, 0)
+				certs[0].Extensions = make([]pkix.Extension, 0)
+				return certs, privKey, didStr
 			},
 			errorText: "no values found in the SAN attributes, please check if the certificate is an UZI Server Certificate",
 		},
 		{
-			name: "broken signing key",
-			in: func(certs []*x509.Certificate) ([]*x509.Certificate, *rsa.PrivateKey, string) {
-				return certs, nil, "did:example:123"
+			name: "nok - empty cert in chain",
+			in: func(t *testing.T) ([]*x509.Certificate, *rsa.PrivateKey, string) {
+				certs, privKey, didStr := defaultIn(t)
+				certs[0] = &x509.Certificate{}
+				return certs, privKey, didStr
 			},
-			errorText: "signing key is nil",
+			errorText: "no values found in the SAN attributes, please check if the certificate is an UZI Server Certificate",
 		},
 		{
-			name: "happy path",
-			in: func(certs []*x509.Certificate) ([]*x509.Certificate, *rsa.PrivateKey, string) {
-				return certs, privateKey, "did:example:123"
+			name: "nok - nil signing key",
+			in: func(t *testing.T) ([]*x509.Certificate, *rsa.PrivateKey, string) {
+				certs, _, didStr := defaultIn(t)
+				return certs, nil, didStr
 			},
-			errorText: "",
+			errorText: "signing key is nil",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			certificates := clo.Clone(_certs).([]*x509.Certificate)
-			certificates, signingKey, subjectDID := tt.in(certificates)
+			certificates, signingKey, subjectDID := tt.in(t)
 			_, err := BuildUraVerifiableCredential(certificates, signingKey, subjectDID, []x509_cert.SubjectTypeName{})
 			if err != nil {
 				if err.Error() != tt.errorText {
@@ -113,8 +165,11 @@ func TestBuildUraVerifiableCredential(t *testing.T) {
 }
 
 func TestBuildCertificateChain(t *testing.T) {
-	certs, _, _, _, _, err := x509_cert.BuildSelfSignedCertChain("2.16.528.1.1007.99.2110-1-900030787-S-90000380-00.000-11223344", "90000380")
-	failError(t, err)
+	chainBytes, err := os.ReadFile("testdata/valid_chain.pem")
+	require.NoError(t, err, "failed to read chain")
+
+	certs := parsePEMCertificates(t, chainBytes)
+
 	tests := []struct {
 		name      string
 		errorText string
@@ -122,7 +177,7 @@ func TestBuildCertificateChain(t *testing.T) {
 		out       func(certs []*x509.Certificate) []*x509.Certificate
 	}{
 		{
-			name: "happy flow",
+			name: "ok - valid cert input",
 			in: func(certs []*x509.Certificate) []*x509.Certificate {
 				return certs
 			},
@@ -132,7 +187,18 @@ func TestBuildCertificateChain(t *testing.T) {
 			errorText: "",
 		},
 		{
-			name: "no signing certificate",
+			name: "ok - it handles out of order certificates",
+			in: func(certs []*x509.Certificate) []*x509.Certificate {
+				certs = []*x509.Certificate{certs[2], certs[0], certs[3], certs[1]}
+				return certs
+			},
+			out: func(certs []*x509.Certificate) []*x509.Certificate {
+				return certs
+			},
+			errorText: "",
+		},
+		{
+			name: "nok - missing signing certificate",
 			in: func(certs []*x509.Certificate) []*x509.Certificate {
 				certs = certs[1:]
 				return certs
@@ -143,7 +209,7 @@ func TestBuildCertificateChain(t *testing.T) {
 			errorText: "failed to find signing certificate",
 		},
 		{
-			name: "no root CA certificate",
+			name: "nok - missing root CA certificate",
 			in: func(certs []*x509.Certificate) []*x509.Certificate {
 				certs = certs[:3]
 				return certs
@@ -154,7 +220,7 @@ func TestBuildCertificateChain(t *testing.T) {
 			errorText: "failed to find path from signingCert to root",
 		},
 		{
-			name: "no intermediate CA certificate type 1",
+			name: "nok - missing first intermediate CA certificate",
 			in: func(certs []*x509.Certificate) []*x509.Certificate {
 				certs = []*x509.Certificate{certs[0], certs[2], certs[3]}
 				return certs
@@ -165,7 +231,7 @@ func TestBuildCertificateChain(t *testing.T) {
 			errorText: "failed to find path from signingCert to root",
 		},
 		{
-			name: "no intermediate CA certificate type 2",
+			name: "nok - missing second intermediate CA certificate",
 			in: func(certs []*x509.Certificate) []*x509.Certificate {
 				certs = []*x509.Certificate{certs[0], certs[1], certs[3]}
 				return certs
@@ -175,36 +241,11 @@ func TestBuildCertificateChain(t *testing.T) {
 			},
 			errorText: "failed to find path from signingCert to root",
 		},
-		{
-			name: "no intermediate CA certificate type 3",
-			in: func(certs []*x509.Certificate) []*x509.Certificate {
-				certs = []*x509.Certificate{certs[0], nil, certs[2], certs[3]}
-				return certs
-			},
-			out: func(certs []*x509.Certificate) []*x509.Certificate {
-				return nil
-			},
-			errorText: "failed to find path from signingCert to root",
-		},
-		{
-			name: "reverse certificate order",
-			in: func(certs []*x509.Certificate) []*x509.Certificate {
-				rv := make([]*x509.Certificate, 0)
-				for i := len(certs) - 1; i >= 0; i-- {
-					rv = append(rv, certs[i])
-				}
-				return rv
-			},
-			out: func(certs []*x509.Certificate) []*x509.Certificate {
-				return certs
-			},
-			errorText: "",
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			inputCerts := tt.in(clo.Clone(certs).([]*x509.Certificate))
-			expectedCerts := tt.out(clo.Clone(certs).([]*x509.Certificate))
+			inputCerts := tt.in(certs)
+			expectedCerts := tt.out(certs)
 			resultCerts, err := BuildCertificateChain(inputCerts)
 			if err != nil {
 				if err.Error() != tt.errorText {
@@ -230,9 +271,11 @@ func TestIssue(t *testing.T) {
 
 	brokenChain, _, _, _, _, err := x509_cert.BuildSelfSignedCertChain("KAAS", "HAM")
 	failError(t, err)
+
 	identifier := "2.16.528.1.1007.99.2110-1-900030787-S-90000380-00.000-11223344"
 	ura := "90000380"
 	chain, _, rootCert, privKey, signingCert, err := x509_cert.BuildSelfSignedCertChain(identifier, ura)
+
 	bytesRootHash := sha512.Sum512(rootCert.Raw)
 	rootHash := base64.RawURLEncoding.EncodeToString(bytesRootHash[:])
 	failError(t, err)
@@ -281,7 +324,7 @@ func TestIssue(t *testing.T) {
 		errorText  string
 	}{
 		{
-			name:       "happy path",
+			name:       "ok - happy path",
 			certFile:   pemFile.Name(),
 			keyFile:    keyFile.Name(),
 			subjectDID: "did:example:123",
