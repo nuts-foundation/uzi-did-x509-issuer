@@ -50,6 +50,7 @@ func main() {
 			fmt.Println(err)
 			os.Exit(-1)
 		}
+		fmt.Println("VC result:")
 		err = printLineAndFlush(jwt)
 		if err != nil {
 			fmt.Println(err)
@@ -123,5 +124,28 @@ func printLineAndFlush(jwt string) error {
 }
 
 func issueVc(vc VC) (string, error) {
-	return uzi_vc_issuer.Issue(vc.CertificateFile, vc.SigningKey, vc.SubjectDID, vc.Test, vc.IncludePermanent, vc.SubjectAttributes)
+	chain, err := uzi_vc_issuer.NewValidCertificateChain(vc.CertificateFile)
+	if err != nil {
+		return "", err
+	}
+
+	key, err := uzi_vc_issuer.NewPrivateKey(vc.SigningKey)
+	if err != nil {
+		return "", err
+	}
+
+	subject, err := uzi_vc_issuer.NewSubjectDID(vc.SubjectDID)
+	if err != nil {
+		return "", err
+	}
+
+	credential, err := uzi_vc_issuer.Issue(chain, key, subject,
+		uzi_vc_issuer.SubjectAttributes(vc.SubjectAttributes...),
+		uzi_vc_issuer.AllowTestUraCa(vc.Test))
+
+	if err != nil {
+		return "", err
+	}
+
+	return credential.Raw(), nil
 }
