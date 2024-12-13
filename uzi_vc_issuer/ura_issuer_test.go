@@ -7,6 +7,7 @@ import (
 	"os"
 	"testing"
 
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/uzi-did-x509-issuer/x509_cert"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -184,8 +185,8 @@ func TestIssue(t *testing.T) {
 		require.NotNil(t, vc, "verifiable credential is nil")
 
 		assert.Equal(t, "https://www.w3.org/2018/credentials/v1", vc.Context[0].String())
-		assert.Equal(t, "VerifiableCredential", vc.Type[0].String())
-		assert.Equal(t, "UziServerCertificateCredential", vc.Type[1].String())
+		assert.True(t, vc.IsType(ssi.MustParseURI("VerifiableCredential")))
+		assert.True(t, vc.IsType(ssi.MustParseURI("X509Credential")))
 		assert.Equal(t, "did:x509:0:sha512:0OXDVLevEnf_sE-Ayopm0Yof_gmBwxwKZmzbDhKeAwj9vcsI_Q14TBArYsCftQTABLM-Vx9BB6zI05Me2aksaA::san:otherName:2.16.528.1.1007.99.2110-1-1111111-S-2222222-00.000-333333::subject:O:FauxCare", vc.Issuer.String())
 
 		expectedCredentialSubject := []interface{}([]interface{}{map[string]interface{}{

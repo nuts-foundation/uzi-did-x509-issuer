@@ -1,4 +1,4 @@
-# Nuts UZI Server Certificaat Issuer
+# Nuts X509 Certificate Issuer
 
 [![Maintainability](https://api.codeclimate.com/v1/badges/f92496250890e40900aa/maintainability)](https://codeclimate.com/github/nuts-foundation/uzi-did-x509-issuer/maintainability)
 [![Test Coverage](https://api.codeclimate.com/v1/badges/f92496250890e40900aa/test_coverage)](https://codeclimate.com/github/nuts-foundation/uzi-did-x509-issuer/test_coverage)
@@ -7,23 +7,25 @@
 > This repository contains experimental code and is not suitable for production usage!
 
 ## Description
-The UZI Server Certificaat Issuer is a Go-based tool designed for issuing Verifiable Credentials signed by a UZI Server Certificaat. The issuer creates a did:x509 based on the PKI certificate chain.
+
+The X509 certificate Issuer is a Go-based tool designed for issuing Verifiable Credentials signed by a X509 certificate. The issuer creates a did:x509 based on the PKI certificate chain.
+Its main purspose is to create verificable credentials form certificates issued by the [UZI certificate chain from the CIBG registry](https://www.zorgcsp.nl/ca-certificaten).
 
 ## Features
 
-The UZI Server Certificaat Issuer generated a Verifiable Credential of type UziServerCertificateCredential with the following features:
+The X509 certificate Issuer generated a Verifiable Credential of type X509Credential with the following features:
 
 - The DID method is a customized did:x509 DID pointing to the x5c header.
 - The x5c filled with the certificate chain. The chain is built from:
-  - The provided UZI server (Test) Certificate
+  - The provided UZI server (Test) certificate
   - All the required certificates from the [UZI register](https://www.zorgcsp.nl/certificate-revocation-lists-crl-s).
   - If the test mode is enabled, the [Test UZI register](https://acceptatie.zorgcsp.nl/ca-certificaten)
-- Signed by the private key of the UZI Server Certificaat.
+- Signed by the private key of the X509 certificate.
 - The VC issued to the provided DID and name.
 
 ## Note on security, trust, and secrecy
 
-The VC that is signed by this application are cryptographic proofs, signed by the private key used in the UZI Server Certificate process. Note that:
+The VC that is signed by this application are cryptographic proofs, signed by the private key used in the X509 certificate process. Note that:
 
 - This private key is supposed to be kept very secret.
 - The Subject DID of the signed credential is mandated with cryptographic proof to act on behalf of the owner of the private key on the NUTS network.
@@ -56,10 +58,11 @@ Follow these steps to set up the project:
    ```sh
    go build -ldflags="-w -s " -o ./issuer
    ```
-    or
+   or
    ```shell
    make build
    ```
+
 ## Usage
 
 1. **Run the application:**
@@ -105,9 +108,9 @@ The following command converts .cer files to PEM:
  openssl x509 -inform der -in certificate.cer -out certificate.pem
 ```
 
-## Validating a UziServerCertificateCredential
+## Validating a X509Credential
 
-The logic on Validating a UziServerCertificateCredential is described in the [VC_VALIDATION.md](VC_VALIDATION.md) file.
+The logic on Validating a X509Credential is described in the [VC_VALIDATION.md](VC_VALIDATION.md) file.
 
 ## Contributing
 
