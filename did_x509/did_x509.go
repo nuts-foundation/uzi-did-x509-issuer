@@ -5,11 +5,13 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/uzi-did-x509-issuer/x509_cert"
 	"net/url"
 	"regexp"
 	"strings"
+	"unicode"
+
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/uzi-did-x509-issuer/x509_cert"
 )
 
 type X509Did struct {
@@ -49,9 +51,28 @@ func CreateDid(signingCert, caCert *x509.Certificate, subjectAttributes []x509_c
 	formattedDid, err := FormatDid(caCert, policies...)
 	return formattedDid, err
 }
+
+// PercentEncode encodes a string using percent encoding.
+// we can not use url.PathEscape because it does not escape : $ & + = : @ characters.
+// See https://github.com/golang/go/issues/27559#issuecomment-449652574
+func PercentEncode(input string) string {
+	var encoded strings.Builder
+	for _, r := range input {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' || r == '_' || r == '.' || r == '~' {
+			encoded.WriteRune(r)
+		} else {
+			encoded.WriteString(fmt.Sprintf("%%%02X", r))
+		}
+	}
+	return encoded.String()
+}
+
 func ParseDid(didString string) (*X509Did, error) {
 	x509Did := X509Did{}
-	didObj := did.MustParseDID(didString)
+	didObj, err := did.ParseDID(didString)
+	if err != nil {
+		return nil, err
+	}
 	if didObj.Method != "x509" {
 		return nil, errors.New("invalid didString method")
 	}
@@ -96,7 +117,7 @@ func ParseDid(didString string) (*X509Did, error) {
 func CreateOtherNamePolicies(otherNames []*x509_cert.OtherNameValue) []string {
 	var policies []string
 	for _, otherName := range otherNames {
-		value := url.PathEscape(otherName.Value)
+		value := PercentEncode(otherName.Value)
 		fragments := []string{string(otherName.PolicyType), string(otherName.Type), value}
 		policy := strings.Join(fragments, ":")
 		policies = append(policies, policy)
@@ -107,7 +128,7 @@ func CreateOtherNamePolicies(otherNames []*x509_cert.OtherNameValue) []string {
 func CreateSubjectPolicies(subjectValues []*x509_cert.SubjectValue) []string {
 	var policies []string
 	for _, subjectValue := range subjectValues {
-		value := url.PathEscape(subjectValue.Value)
+		value := PercentEncode(subjectValue.Value)
 		fragments := []string{string(subjectValue.PolicyType), string(subjectValue.Type), value}
 		policy := strings.Join(fragments, ":")
 		policies = append(policies, policy)

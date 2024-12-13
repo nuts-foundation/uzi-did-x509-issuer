@@ -6,6 +6,7 @@ import (
 	"crypto/sha1"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"os"
@@ -392,8 +393,7 @@ func convertHeaders(headers map[string]interface{}) (jws.Headers, error) {
 	return hdr, nil
 }
 
-// uraCredential generates a VerifiableCredential for a given URA and UZI number, including the subject's DID.
-// It sets a 1-year expiration period from the current issuance date.
+// uraCredential builds a VerifiableCredential for a given URA and UZI number, including the subject's DID.
 func uraCredential(issuer string, expirationDate time.Time, otherNameValues []*x509_cert.OtherNameValue, subjectTypes []*x509_cert.SubjectValue, subjectDID subjectDID) (*vc.VerifiableCredential, error) {
 	iat := time.Now()
 	subject := map[string]interface{}{
@@ -407,8 +407,13 @@ func uraCredential(issuer string, expirationDate time.Time, otherNameValues []*x
 		subject[string(subjectType.Type)] = subjectType.Value
 	}
 
+	issuerDID, err := did.ParseDID(issuer)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse issuer DID '%s': %w", issuer, err)
+	}
+
 	id := did.DIDURL{
-		DID:      did.MustParseDID(issuer),
+		DID:      *issuerDID,
 		Fragment: uuid.NewString(),
 	}.URI()
 	return &vc.VerifiableCredential{
