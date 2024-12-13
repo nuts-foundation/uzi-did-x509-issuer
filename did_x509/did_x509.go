@@ -1,9 +1,7 @@
 package did_x509
 
 import (
-	"crypto/sha1"
 	"crypto/sha256"
-	"crypto/sha512"
 	"crypto/x509"
 	"encoding/base64"
 	"errors"
@@ -15,38 +13,13 @@ import (
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/uzi-did-x509-issuer/x509_cert"
-	"golang.org/x/crypto/sha3"
 )
 
-type HashAlg string
+// hashAlg is the default hash algorithm used for hashing issuerCertificate
+const hashAlg = "sha256"
 
-const (
-	Sha1   HashAlg = "sha1"
-	Sha256 HashAlg = "sha256"
-	Sha384 HashAlg = "sha384"
-	Sha512 HashAlg = "sha512"
-)
-
-// Hash computes the hash of the input data using the specified algorithm.
-// Supported algorithms include "sha1", "sha256", "sha384", and "sha512".
-// Returns the computed hash as a byte slice or an error if the algorithm is not supported.
-func Hash(data []byte, alg HashAlg) ([]byte, error) {
-	switch alg {
-	case Sha1:
-		sum := sha1.Sum(data)
-		return sum[:], nil
-	case Sha256:
-		sum := sha256.Sum256(data)
-		return sum[:], nil
-	case Sha384:
-		sum := sha3.Sum384(data)
-		return sum[:], nil
-	case Sha512:
-		sum := sha512.Sum512(data)
-		return sum[:], nil
-	}
-	return nil, fmt.Errorf("unsupported hash algorithm: %s", alg)
-}
+// newHashFn is the default hash function used for hashing issuerCertificate
+var newHashFn = sha256.New
 
 type X509Did struct {
 	Version                string
@@ -57,14 +30,13 @@ type X509Did struct {
 
 // FormatDid constructs a decentralized identifier (DID) from a certificate chain and an optional policy.
 // It returns the formatted DID string or an error if the root certificate or hash calculation fails.
-func FormatDid(issuerCert *x509.Certificate, hashAlg HashAlg, policy ...string) (*did.DID, error) {
-	issuerCertHash, err := Hash(issuerCert.Raw, hashAlg)
-	if err != nil {
-		return nil, err
-	}
+func FormatDid(issuerCert *x509.Certificate, policy ...string) (*did.DID, error) {
+	hasher := newHashFn()
+	hasher.Write(issuerCert.Raw)
+	sum := hasher.Sum(nil)
 
-	encodeToString := base64.RawURLEncoding.EncodeToString(issuerCertHash)
-	fragments := []string{"did", "x509", "0", string(hashAlg), encodeToString}
+	b64EncodedHash := base64.RawURLEncoding.EncodeToString(sum[:])
+	fragments := []string{"did", "x509", "0", hashAlg, b64EncodedHash}
 	didString := strings.Join([]string{strings.Join(fragments, ":"), strings.Join(policy, "::")}, "::")
 	return did.ParseDID(didString)
 }
@@ -86,7 +58,7 @@ func CreateDid(signingCert, caCert *x509.Certificate, subjectAttributes []x509_c
 
 	policies = append(policies, CreateSubjectPolicies(subjectTypes)...)
 
-	formattedDid, err := FormatDid(caCert, Sha256, policies...)
+	formattedDid, err := FormatDid(caCert, policies...)
 	return formattedDid, err
 }
 
