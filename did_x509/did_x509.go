@@ -1,6 +1,9 @@
 package did_x509
 
 import (
+	"crypto/sha1"
+	"crypto/sha256"
+	"crypto/sha512"
 	"crypto/x509"
 	"encoding/base64"
 	"errors"
@@ -12,7 +15,38 @@ import (
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/uzi-did-x509-issuer/x509_cert"
+	"golang.org/x/crypto/sha3"
 )
+
+type HashAlg string
+
+const (
+	Sha1   HashAlg = "sha1"
+	Sha256 HashAlg = "sha256"
+	Sha384 HashAlg = "sha384"
+	Sha512 HashAlg = "sha512"
+)
+
+// Hash computes the hash of the input data using the specified algorithm.
+// Supported algorithms include "sha1", "sha256", "sha384", and "sha512".
+// Returns the computed hash as a byte slice or an error if the algorithm is not supported.
+func Hash(data []byte, alg HashAlg) ([]byte, error) {
+	switch alg {
+	case Sha1:
+		sum := sha1.Sum(data)
+		return sum[:], nil
+	case Sha256:
+		sum := sha256.Sum256(data)
+		return sum[:], nil
+	case Sha384:
+		sum := sha3.Sum384(data)
+		return sum[:], nil
+	case Sha512:
+		sum := sha512.Sum512(data)
+		return sum[:], nil
+	}
+	return nil, fmt.Errorf("unsupported hash algorithm: %s", alg)
+}
 
 type X509Did struct {
 	Version                string
@@ -23,35 +57,36 @@ type X509Did struct {
 
 // FormatDid constructs a decentralized identifier (DID) from a certificate chain and an optional policy.
 // It returns the formatted DID string or an error if the root certificate or hash calculation fails.
-func FormatDid(caCert *x509.Certificate, policy ...string) (string, error) {
-	alg := "sha512"
-	rootHash, err := x509_cert.Hash(caCert.Raw, alg)
+func FormatDid(issuerCert *x509.Certificate, hashAlg HashAlg, policy ...string) (*did.DID, error) {
+	issuerCertHash, err := Hash(issuerCert.Raw, hashAlg)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	encodeToString := base64.RawURLEncoding.EncodeToString(rootHash)
-	fragments := []string{"did", "x509", "0", alg, encodeToString}
-	return strings.Join([]string{strings.Join(fragments, ":"), strings.Join(policy, "::")}, "::"), nil
+
+	encodeToString := base64.RawURLEncoding.EncodeToString(issuerCertHash)
+	fragments := []string{"did", "x509", "0", string(hashAlg), encodeToString}
+	didString := strings.Join([]string{strings.Join(fragments, ":"), strings.Join(policy, "::")}, "::")
+	return did.ParseDID(didString)
 }
 
 // CreateDid generates a Decentralized Identifier (DID) from a given certificate chain.
 // It extracts the Unique Registration Address (URA) from the chain, creates a policy with it, and formats the DID.
 // Returns the generated DID or an error if any step fails.
-func CreateDid(signingCert, caCert *x509.Certificate, subjectAttributes []x509_cert.SubjectTypeName, types ...x509_cert.SanTypeName) (string, error) {
+func CreateDid(signingCert, caCert *x509.Certificate, subjectAttributes []x509_cert.SubjectTypeName, types ...x509_cert.SanTypeName) (*did.DID, error) {
 	otherNames, err := x509_cert.SelectSanTypes(signingCert, types...)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	policies := CreateOtherNamePolicies(otherNames)
 
 	subjectTypes, err := x509_cert.SelectSubjectTypes(signingCert, subjectAttributes...)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	policies = append(policies, CreateSubjectPolicies(subjectTypes)...)
 
-	formattedDid, err := FormatDid(caCert, policies...)
+	formattedDid, err := FormatDid(caCert, Sha256, policies...)
 	return formattedDid, err
 }
 

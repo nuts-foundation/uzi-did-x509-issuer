@@ -1,78 +1,14 @@
 package x509_cert
 
 import (
-	"bytes"
-	"crypto/sha1"
-	"crypto/sha256"
-	"crypto/sha512"
 	"crypto/x509"
 	"encoding/pem"
-	"fmt"
-	"github.com/stretchr/testify/assert"
-	"golang.org/x/crypto/sha3"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func TestHash(t *testing.T) {
-	sha1sum := sha1.Sum([]byte("test"))
-	sha256sum := sha256.Sum256([]byte("test"))
-	sha384sum := sha3.Sum384([]byte("test"))
-	sha512sum := sha512.Sum512([]byte("test"))
-	testCases := []struct {
-		name  string
-		data  []byte
-		alg   string
-		hash  []byte
-		error error
-	}{
-		{
-			name: "SHA1",
-			data: []byte("test"),
-			alg:  "sha1",
-			hash: sha1sum[:],
-		},
-		{
-			name: "SHA256",
-			data: []byte("test"),
-			alg:  "sha256",
-			hash: sha256sum[:],
-		},
-		{
-			name: "SHA384",
-			data: []byte("test"),
-			alg:  "sha384",
-			hash: sha384sum[:],
-		},
-		{
-			name: "SHA512",
-			data: []byte("test"),
-			alg:  "sha512",
-			hash: sha512sum[:],
-		},
-		{
-			name:  "Unsupported",
-			data:  []byte("test"),
-			alg:   "unsupported",
-			hash:  nil,
-			error: fmt.Errorf("unsupported hash algorithm: %s", "unsupported"),
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			hash, err := Hash(tc.data, tc.alg)
-			if tc.error != nil {
-				if err.Error() != tc.error.Error() {
-					t.Errorf("unexpected error %v, want %v", err, tc.error)
-				}
-			}
-			if !bytes.Equal(hash, tc.hash) {
-				t.Errorf("unexpected hash %x, want %x", hash, tc.hash)
-			}
-		})
-	}
-}
 func TestParseChain(t *testing.T) {
 	_, chainPem, _, _, _, err := BuildSelfSignedCertChain("2.16.528.1.1007.99.2110-1-900030787-S-90000380-00.000-11223344", "900030787")
 	failError(t, err)
