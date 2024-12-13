@@ -45,6 +45,9 @@ func CreateDid(signingCert, caCert *x509.Certificate, subjectAttributes []x509_c
 	policies := CreateOtherNamePolicies(otherNames)
 
 	subjectTypes, err := x509_cert.SelectSubjectTypes(signingCert, subjectAttributes...)
+	if err != nil {
+		return "", err
+	}
 
 	policies = append(policies, CreateSubjectPolicies(subjectTypes)...)
 
@@ -58,7 +61,7 @@ func CreateDid(signingCert, caCert *x509.Certificate, subjectAttributes []x509_c
 func PercentEncode(input string) string {
 	var encoded strings.Builder
 	for _, r := range input {
-		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' || r == '_' || r == '.' || r == '~' {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' || r == '_' || r == '.' {
 			encoded.WriteRune(r)
 		} else {
 			encoded.WriteString(fmt.Sprintf("%%%02X", r))
