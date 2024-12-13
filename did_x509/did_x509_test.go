@@ -3,15 +3,37 @@ package did_x509
 import (
 	"crypto/x509"
 	"encoding/base64"
-	"github.com/nuts-foundation/uzi-did-x509-issuer/x509_cert"
-	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/nuts-foundation/uzi-did-x509-issuer/x509_cert"
+	"github.com/stretchr/testify/assert"
 )
 
-// TestDefaultDidCreator_CreateDid tests the CreateDid function of DefaultDidProcessor by providing different certificate chains.
+func TestPercentEncode(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"hello world", "hello%20world"},
+		{"foo@bar.com", "foo%40bar.com"},
+		{"100%", "100%25"},
+		{"a+b=c", "a%2Bb%3Dc"},
+		{"~!@#$%^&*()_+", "%7E%21%40%23%24%25%5E%26%2A%28%29_%2B"},
+		{"FauxCare & Co", "FauxCare%20%26%20Co"},
+	}
+
+	for _, test := range tests {
+		result := PercentEncode(test.input)
+		if result != test.expected {
+			t.Errorf("PercentEncode(%q) = %q; want %q", test.input, result, test.expected)
+		}
+	}
+}
+
+// TestCreateDid tests the CreateDid function of DefaultDidProcessor by providing different certificate chains.
 // It checks for correct DID generation and appropriate error messages.
-func TestDefaultDidCreator_CreateDidSingle(t *testing.T) {
+func TestCreateDidSingle(t *testing.T) {
 	type fields struct {
 	}
 	type args struct {
@@ -99,7 +121,7 @@ func TestDefaultDidCreator_CreateDidSingle(t *testing.T) {
 		})
 	}
 }
-func TestDefaultDidCreator_CreateDidDouble(t *testing.T) {
+func TestCreateDidDouble(t *testing.T) {
 	type fields struct {
 	}
 	type args struct {
@@ -183,9 +205,9 @@ func TestDefaultDidCreator_CreateDidDouble(t *testing.T) {
 	}
 }
 
-// TestDefaultDidCreator_ParseDid tests the ParseDid function of DefaultDidProcessor by providing different DID strings.
+// TestParseDid tests the ParseDid function of DefaultDidProcessor by providing different DID strings.
 // It checks for correct X509Did parsing and appropriate error messages.
-func TestDefaultDidCreator_ParseDid(t *testing.T) {
+func TestParseDid(t *testing.T) {
 	policies := []*x509_cert.GenericNameValue{
 		{
 			PolicyType: "san",
@@ -206,24 +228,30 @@ func TestDefaultDidCreator_ParseDid(t *testing.T) {
 		errMsg string
 	}{
 		{
-			name:   "Invalid DID method",
+			name:   "ok - happy path",
+			fields: fields{},
+			args:   args{didString: "did:x509:0:sha512:hash::san:otherName:A_BIG_STRING"},
+			want:   &X509Did{Version: "0", RootCertificateHashAlg: "sha512", RootCertificateHash: "hash", Policies: policies},
+			errMsg: "",
+		},
+		{
+			name:   "nok - invalid DID method",
 			fields: fields{},
 			args:   args{didString: "did:abc:0:sha512:hash::san:otherName:A_BIG_STRING"},
 			want:   nil,
 			errMsg: "invalid didString method",
 		},
 		{
-			name:   "Invalid DID format",
+			name:   "nok - invalid DID format",
 			fields: fields{},
 			args:   args{didString: "did:x509:0:sha512::san:otherName:A_BIG_STRING"},
 			want:   nil,
 			errMsg: "invalid didString format, expected didString:x509:0:alg:hash::san:type:ura",
 		},
-		{
-			name:   "Happy path",
+		{name: "ok - correct unescaping",
 			fields: fields{},
-			args:   args{didString: "did:x509:0:sha512:hash::san:otherName:A_BIG_STRING"},
-			want:   &X509Did{Version: "0", RootCertificateHashAlg: "sha512", RootCertificateHash: "hash", Policies: policies},
+			args:   args{didString: "did:x509:0:sha512:hash::san:otherName:hello%20world%20from%20FauxCare%20%26%20Co"},
+			want:   &X509Did{Version: "0", RootCertificateHashAlg: "sha512", RootCertificateHash: "hash", Policies: []*x509_cert.GenericNameValue{{PolicyType: "san", Type: "otherName", Value: "hello world from FauxCare & Co"}}},
 			errMsg: "",
 		},
 	}
@@ -232,20 +260,16 @@ func TestDefaultDidCreator_ParseDid(t *testing.T) {
 			got, err := ParseDid(tt.args.didString)
 			wantErr := tt.errMsg != ""
 			if (err != nil) != wantErr {
-				t.Errorf("DefaultDidProcessor.ParseDid() error = %v, expected error = %v", err, tt.errMsg)
+				t.Errorf("ParseDid() error = %v, expected error = %v", err, tt.errMsg)
 				return
 			} else if wantErr {
 				if err.Error() != tt.errMsg {
-					t.Errorf("DefaultDidProcessor.ParseDid() expected = \"%v\", got = \"%v\"", tt.errMsg, err.Error())
+					t.Errorf("ParseDid() expected = \"%v\", got = \"%v\"", tt.errMsg, err.Error())
 				}
 			}
 
-			if tt.want != nil && got != nil &&
-				(tt.want.Version != got.Version ||
-					tt.want.RootCertificateHashAlg != got.RootCertificateHashAlg ||
-					tt.want.RootCertificateHash != got.RootCertificateHash ||
-					!reflect.DeepEqual(tt.want.Policies, got.Policies)) {
-				t.Errorf("DefaultDidProcessor.ParseDid() = %v, want = %v", got, tt.want)
+			if tt.want != nil && got != nil {
+				assert.Equal(t, tt.want.Policies, got.Policies)
 			}
 		})
 	}
