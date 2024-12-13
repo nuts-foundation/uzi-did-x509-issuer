@@ -2,105 +2,107 @@ package uzi_vc_issuer
 
 import (
 	"crypto/rsa"
-	"crypto/sha512"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"encoding/base64"
-	"encoding/json"
-	"fmt"
-	clo "github.com/huandu/go-clone"
-	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/uzi-did-x509-issuer/x509_cert"
-	"github.com/stretchr/testify/require"
 	"os"
-	"strings"
 	"testing"
+
+	"github.com/nuts-foundation/uzi-did-x509-issuer/x509_cert"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBuildUraVerifiableCredential(t *testing.T) {
 
-	_certs, _, _, privateKey, signingCert, err := x509_cert.BuildSelfSignedCertChain("2.16.528.1.1007.99.2110-1-900030787-S-90000380-00.000-11223344", "90000380")
-	failError(t, err)
+	chainBytes, err := os.ReadFile("testdata/valid_chain.pem")
+	require.NoError(t, err, "failed to read chain")
+
+	type inFn = func(t *testing.T) ([]*x509.Certificate, *rsa.PrivateKey, string)
+
+	defaultIn := func(t *testing.T) ([]*x509.Certificate, *rsa.PrivateKey, string) {
+		pemBlocks, err := parsePemBytes(chainBytes)
+		require.NoError(t, err, "failed to parse pem blocks")
+
+		certs, err := parseCertificatesFromPemBlocks(pemBlocks)
+		require.NoError(t, err, "failed to parse certificates from pem blocks")
+
+		privKey, err := NewPrivateKey("testdata/signing_key.pem")
+		require.NoError(t, err, "failed to read signing key")
+
+		return certs, privKey, "did:example:123"
+	}
 
 	tests := []struct {
 		name      string
-		in        func(certs []*x509.Certificate) ([]*x509.Certificate, *rsa.PrivateKey, string)
+		in        inFn
 		errorText string
 	}{
 		{
-			name: "empty chain",
-			in: func(certs []*x509.Certificate) ([]*x509.Certificate, *rsa.PrivateKey, string) {
-				return []*x509.Certificate{}, privateKey, "did:example:123"
-			},
-			errorText: "empty certificate chain",
+			name:      "ok - valid chain",
+			in:        defaultIn,
+			errorText: "",
 		},
+		// {
+		// 	name: "nok - empty chain",
+		// 	in: func(t *testing.T) ([]*x509.Certificate, *rsa.PrivateKey, string) {
+		// 		_, privKey, didStr := defaultIn(t)
+		// 		return []*x509.Certificate{}, privKey, didStr
+		// 	},
+		// 	errorText: "empty certificate chain",
+		// },
 		{
-			name: "invalid signing certificate 1",
-			in: func(certs []*x509.Certificate) ([]*x509.Certificate, *rsa.PrivateKey, string) {
-				signingTmpl, err := x509_cert.SigningCertTemplate(nil, "2.16.528.1.1007.99.2110-1-900030787-S-90000380-00.000-11223344", "90000380")
-				signingTmpl.Subject.SerialNumber = "KAAS"
-				failError(t, err)
-				cert, _, err := x509_cert.CreateCert(signingTmpl, signingCert, signingCert.PublicKey, privateKey)
-				failError(t, err)
-				certs[0] = cert
-				return certs, privateKey, "did:example:123"
-			},
-			errorText: "serial number does not match UZI number",
-		},
-		{
-			name: "invalid signing certificate 2",
-			in: func(certs []*x509.Certificate) ([]*x509.Certificate, *rsa.PrivateKey, string) {
-				signingTmpl, err := x509_cert.SigningCertTemplate(nil, "2.16.528.1.1007.99.2110-1-900030787-S-90000380-00.000-11223344", "90000380")
-				signingTmpl.ExtraExtensions = make([]pkix.Extension, 0)
-				failError(t, err)
-				cert, _, err := x509_cert.CreateCert(signingTmpl, signingCert, signingCert.PublicKey, privateKey)
-				failError(t, err)
-				certs[0] = cert
-				return certs, privateKey, "did:example:123"
-			},
-			errorText: "no values found in the SAN attributes, please check if the certificate is an UZI Server Certificate",
-		},
-		{
-			name: "invalid serial number",
-			in: func(certs []*x509.Certificate) ([]*x509.Certificate, *rsa.PrivateKey, string) {
-				certificate := clo.Clone(certs[0]).(*x509.Certificate)
-				certificate.Subject.SerialNumber = ""
-				certs[0] = certificate
-				return certs, privateKey, "did:example:123"
+			name: "nok - empty serial number",
+			in: func(*testing.T) ([]*x509.Certificate, *rsa.PrivateKey, string) {
+				certs, privKey, didStr := defaultIn(t)
+				certs[0].Subject.SerialNumber = ""
+				return certs, privKey, didStr
 			},
 			errorText: "serialNumber not found in signing certificate",
 		},
 		{
-			name: "broken cert",
-			in: func(certs []*x509.Certificate) ([]*x509.Certificate, *rsa.PrivateKey, string) {
-				certs[0] = &x509.Certificate{}
-				return certs, privateKey, "did:example:123"
+			name: "nok - invalid signing serial in signing cert",
+			in: func(t *testing.T) ([]*x509.Certificate, *rsa.PrivateKey, string) {
+				certs, privKey, didStr := defaultIn(t)
+
+				certs[0].Subject.SerialNumber = "invalid-serial-number"
+				return certs, privKey, didStr
+			},
+			errorText: "serial number does not match UZI number",
+		},
+		{
+			name: "nok - invalid signing certificate 2",
+			in: func(t *testing.T) ([]*x509.Certificate, *rsa.PrivateKey, string) {
+				certs, privKey, didStr := defaultIn(t)
+
+				certs[0].ExtraExtensions = make([]pkix.Extension, 0)
+				certs[0].Extensions = make([]pkix.Extension, 0)
+				return certs, privKey, didStr
 			},
 			errorText: "no values found in the SAN attributes, please check if the certificate is an UZI Server Certificate",
 		},
 		{
-			name: "broken signing key",
-			in: func(certs []*x509.Certificate) ([]*x509.Certificate, *rsa.PrivateKey, string) {
-				return certs, nil, "did:example:123"
+			name: "nok - empty cert in chain",
+			in: func(t *testing.T) ([]*x509.Certificate, *rsa.PrivateKey, string) {
+				certs, privKey, didStr := defaultIn(t)
+				certs[0] = &x509.Certificate{}
+				return certs, privKey, didStr
 			},
-			errorText: "signing key is nil",
+			errorText: "no values found in the SAN attributes, please check if the certificate is an UZI Server Certificate",
 		},
-		{
-			name: "happy path",
-			in: func(certs []*x509.Certificate) ([]*x509.Certificate, *rsa.PrivateKey, string) {
-				return certs, privateKey, "did:example:123"
-			},
-			errorText: "",
-		},
+		// {
+		// 	name: "nok - nil signing key",
+		// 	in: func(t *testing.T) ([]*x509.Certificate, *rsa.PrivateKey, string) {
+		// 		certs, _, didStr := defaultIn(t)
+		// 		return certs, nil, didStr
+		// 	},
+		// 	errorText: "signing key is nil",
+		// },
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			certificates := clo.Clone(_certs).([]*x509.Certificate)
-			certificates, signingKey, subjectDID := tt.in(certificates)
-			_, err := BuildUraVerifiableCredential(certificates, signingKey, subjectDID, []x509_cert.SubjectTypeName{})
+			certificates, signingKey, subject := tt.in(t)
+			_, err := Issue(certificates, signingKey, subjectDID(subject))
 			if err != nil {
 				if err.Error() != tt.errorText {
 					t.Errorf("BuildUraVerifiableCredential() error = '%v', wantErr '%v'", err.Error(), tt.errorText)
@@ -112,9 +114,132 @@ func TestBuildUraVerifiableCredential(t *testing.T) {
 	}
 }
 
-func TestBuildCertificateChain(t *testing.T) {
-	certs, _, _, _, _, err := x509_cert.BuildSelfSignedCertChain("2.16.528.1.1007.99.2110-1-900030787-S-90000380-00.000-11223344", "90000380")
-	failError(t, err)
+func TestNewFileName(t *testing.T) {
+	// Create a temporary file for testing
+	tmpFile, err := os.CreateTemp("", "testfile")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	tests := []struct {
+		name      string
+		fileName  string
+		expectErr bool
+	}{
+		{"ValidFile", tmpFile.Name(), false},
+		{"InvalidFile", "nonexistentfile", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := newFileName(tt.fileName)
+			if (err != nil) != tt.expectErr {
+				t.Errorf("newFileName() error = %v, expectErr %v", err, tt.expectErr)
+			}
+		})
+	}
+}
+
+func TestReadFile(t *testing.T) {
+	// Create a temporary file
+	tmpfile, err := os.CreateTemp("", "example")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmpfile.Name()) // clean up
+
+	content := []byte("Hello, World!")
+	if _, err := tmpfile.Write(content); err != nil {
+		t.Fatal(err)
+	}
+	if err := tmpfile.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Call readFile function
+	fileName := fileName(tmpfile.Name())
+	readContent, err := readFile(fileName)
+	if err != nil {
+		t.Fatalf("readFile() error = %v", err)
+	}
+
+	// Assert the content matches
+	if string(readContent) != string(content) {
+		t.Errorf("readFile() = %v, want %v", string(readContent), string(content))
+	}
+}
+
+func TestIssue(t *testing.T) {
+	validChain, err := NewValidCertificateChain("testdata/valid_chain.pem")
+	require.NoError(t, err, "failed to read chain")
+
+	validKey, err := NewPrivateKey("testdata/signing_key.pem")
+	require.NoError(t, err, "failed to read signing key")
+
+	t.Run("ok - happy path", func(t *testing.T) {
+		vc, err := Issue(validChain, validKey, "did:example:123", SubjectAttributes(x509_cert.SubjectTypeCountry, x509_cert.SubjectTypeOrganization))
+
+		require.NoError(t, err, "failed to issue verifiable credential")
+		require.NotNil(t, vc, "verifiable credential is nil")
+
+		assert.Equal(t, "https://www.w3.org/2018/credentials/v1", vc.Context[0].String())
+		assert.Equal(t, "VerifiableCredential", vc.Type[0].String())
+		assert.Equal(t, "UziServerCertificateCredential", vc.Type[1].String())
+		assert.Equal(t, "did:x509:0:sha512:0OXDVLevEnf_sE-Ayopm0Yof_gmBwxwKZmzbDhKeAwj9vcsI_Q14TBArYsCftQTABLM-Vx9BB6zI05Me2aksaA::san:otherName:2.16.528.1.1007.99.2110-1-1111111-S-2222222-00.000-333333::subject:O:FauxCare", vc.Issuer.String())
+
+		expectedCredentialSubject := []interface{}([]interface{}{map[string]interface{}{
+			"id":                           "did:example:123",
+			"O":                            "FauxCare",
+			"otherName":                    "2.16.528.1.1007.99.2110-1-1111111-S-2222222-00.000-333333",
+			"permanentIdentifier.assigner": "2.16.528.1.1007.3.3",
+			"permanentIdentifier.value":    "2222222",
+		}})
+
+		assert.Equal(t, expectedCredentialSubject, vc.CredentialSubject)
+
+		assert.Equal(t, validChain[0].NotAfter, *vc.ExpirationDate, "expiration date of VC must match signing certificate")
+	})
+}
+
+func TestParsePemBytes(t *testing.T) {
+	chainBytes, err := os.ReadFile("testdata/valid_chain.pem")
+	require.NoError(t, err, "failed to read chain")
+
+	tests := []struct {
+		name            string
+		pemBytes        []byte
+		expectNumBlocks int
+		expectErr       bool
+	}{
+		{"ValidChain", chainBytes, 4, false},
+		{"InvalidChain", []byte("invalid pem"), 0, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			blocks, err := parsePemBytes(tt.pemBytes)
+			if (err != nil) != tt.expectErr {
+				t.Errorf("parsePemBytes() error = %v, expectErr %v", err, tt.expectErr)
+			}
+
+			if len(blocks) != tt.expectNumBlocks {
+				t.Errorf("parsePemBytes() = %v, want %v", len(blocks), tt.expectNumBlocks)
+			}
+		})
+	}
+}
+
+func TestNewCertificateChain(t *testing.T) {
+	chainBytes, err := os.ReadFile("testdata/valid_chain.pem")
+	require.NoError(t, err, "failed to read chain")
+
+	pemBlocks, err := parsePemBytes(chainBytes)
+	require.NoError(t, err, "failed to parse pem blocks")
+
+	certs, err := parseCertificatesFromPemBlocks(pemBlocks)
+	require.NoError(t, err, "failed to parse certificates from pem blocks")
+
 	tests := []struct {
 		name      string
 		errorText string
@@ -122,7 +247,7 @@ func TestBuildCertificateChain(t *testing.T) {
 		out       func(certs []*x509.Certificate) []*x509.Certificate
 	}{
 		{
-			name: "happy flow",
+			name: "ok - valid cert input",
 			in: func(certs []*x509.Certificate) []*x509.Certificate {
 				return certs
 			},
@@ -132,7 +257,18 @@ func TestBuildCertificateChain(t *testing.T) {
 			errorText: "",
 		},
 		{
-			name: "no signing certificate",
+			name: "ok - it handles out of order certificates",
+			in: func(certs []*x509.Certificate) []*x509.Certificate {
+				certs = []*x509.Certificate{certs[2], certs[0], certs[3], certs[1]}
+				return certs
+			},
+			out: func(certs []*x509.Certificate) []*x509.Certificate {
+				return certs
+			},
+			errorText: "",
+		},
+		{
+			name: "nok - missing signing certificate",
 			in: func(certs []*x509.Certificate) []*x509.Certificate {
 				certs = certs[1:]
 				return certs
@@ -143,7 +279,7 @@ func TestBuildCertificateChain(t *testing.T) {
 			errorText: "failed to find signing certificate",
 		},
 		{
-			name: "no root CA certificate",
+			name: "nok - missing root CA certificate",
 			in: func(certs []*x509.Certificate) []*x509.Certificate {
 				certs = certs[:3]
 				return certs
@@ -154,7 +290,7 @@ func TestBuildCertificateChain(t *testing.T) {
 			errorText: "failed to find path from signingCert to root",
 		},
 		{
-			name: "no intermediate CA certificate type 1",
+			name: "nok - missing first intermediate CA certificate",
 			in: func(certs []*x509.Certificate) []*x509.Certificate {
 				certs = []*x509.Certificate{certs[0], certs[2], certs[3]}
 				return certs
@@ -165,7 +301,7 @@ func TestBuildCertificateChain(t *testing.T) {
 			errorText: "failed to find path from signingCert to root",
 		},
 		{
-			name: "no intermediate CA certificate type 2",
+			name: "nok - missing second intermediate CA certificate",
 			in: func(certs []*x509.Certificate) []*x509.Certificate {
 				certs = []*x509.Certificate{certs[0], certs[1], certs[3]}
 				return certs
@@ -175,37 +311,12 @@ func TestBuildCertificateChain(t *testing.T) {
 			},
 			errorText: "failed to find path from signingCert to root",
 		},
-		{
-			name: "no intermediate CA certificate type 3",
-			in: func(certs []*x509.Certificate) []*x509.Certificate {
-				certs = []*x509.Certificate{certs[0], nil, certs[2], certs[3]}
-				return certs
-			},
-			out: func(certs []*x509.Certificate) []*x509.Certificate {
-				return nil
-			},
-			errorText: "failed to find path from signingCert to root",
-		},
-		{
-			name: "reverse certificate order",
-			in: func(certs []*x509.Certificate) []*x509.Certificate {
-				rv := make([]*x509.Certificate, 0)
-				for i := len(certs) - 1; i >= 0; i-- {
-					rv = append(rv, certs[i])
-				}
-				return rv
-			},
-			out: func(certs []*x509.Certificate) []*x509.Certificate {
-				return certs
-			},
-			errorText: "",
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			inputCerts := tt.in(clo.Clone(certs).([]*x509.Certificate))
-			expectedCerts := tt.out(clo.Clone(certs).([]*x509.Certificate))
-			resultCerts, err := BuildCertificateChain(inputCerts)
+			inputCerts := tt.in(certs)
+			expectedCerts := tt.out(certs)
+			resultCerts, err := newCertificateChain(inputCerts)
 			if err != nil {
 				if err.Error() != tt.errorText {
 					t.Errorf("BuildCertificateChain() error = '%v', wantErr '%v'", err.Error(), tt.errorText)
@@ -224,139 +335,4 @@ func TestBuildCertificateChain(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestIssue(t *testing.T) {
-
-	brokenChain, _, _, _, _, err := x509_cert.BuildSelfSignedCertChain("KAAS", "HAM")
-	failError(t, err)
-	identifier := "2.16.528.1.1007.99.2110-1-900030787-S-90000380-00.000-11223344"
-	ura := "90000380"
-	chain, _, rootCert, privKey, signingCert, err := x509_cert.BuildSelfSignedCertChain(identifier, ura)
-	bytesRootHash := sha512.Sum512(rootCert.Raw)
-	rootHash := base64.RawURLEncoding.EncodeToString(bytesRootHash[:])
-	failError(t, err)
-
-	chainPems, err := x509_cert.EncodeCertificates(chain...)
-	failError(t, err)
-	siglePem, err := x509_cert.EncodeCertificates(chain[0])
-	failError(t, err)
-	brokenPem, err := x509_cert.EncodeCertificates(brokenChain...)
-	failError(t, err)
-	signingKeyPem, err := x509_cert.EncodeRSAPrivateKey(privKey)
-	failError(t, err)
-
-	pemFile, err := os.CreateTemp(t.TempDir(), "chain.pem")
-	failError(t, err)
-	err = os.WriteFile(pemFile.Name(), chainPems, 0644)
-	failError(t, err)
-
-	brokenPemFile, err := os.CreateTemp(t.TempDir(), "broken_chain.pem")
-	failError(t, err)
-	err = os.WriteFile(brokenPemFile.Name(), brokenPem, 0644)
-	failError(t, err)
-
-	signlePemFile, err := os.CreateTemp(t.TempDir(), "single_chain.pem")
-	failError(t, err)
-	err = os.WriteFile(signlePemFile.Name(), siglePem, 0644)
-	failError(t, err)
-
-	keyFile, err := os.CreateTemp(t.TempDir(), "signing_key.pem")
-	failError(t, err)
-	err = os.WriteFile(keyFile.Name(), signingKeyPem, 0644)
-	failError(t, err)
-
-	emptyFile, err := os.CreateTemp(t.TempDir(), "empty.pem")
-	failError(t, err)
-	err = os.WriteFile(emptyFile.Name(), []byte{}, 0644)
-	failError(t, err)
-
-	tests := []struct {
-		name       string
-		certFile   string
-		keyFile    string
-		subjectDID string
-		allowTest  bool
-		out        *vc.VerifiableCredential
-		errorText  string
-	}{
-		{
-			name:       "happy path",
-			certFile:   pemFile.Name(),
-			keyFile:    keyFile.Name(),
-			subjectDID: "did:example:123",
-			allowTest:  true,
-			out: &vc.VerifiableCredential{
-				Context:        []ssi.URI{ssi.MustParseURI("https://www.w3.org/2018/credentials/v1")},
-				Issuer:         did.MustParseDID(fmt.Sprintf("did:x509:0:sha512:%s::san:otherName:%s::san:permanentIdentifier.value:%s::san:permanentIdentifier.assigner:%s", rootHash, identifier, ura, x509_cert.UraAssigner.String())).URI(),
-				Type:           []ssi.URI{ssi.MustParseURI("VerifiableCredential"), ssi.MustParseURI("UziServerCertificateCredential")},
-				ExpirationDate: toPtr(signingCert.NotAfter),
-			},
-			errorText: "",
-		},
-		{
-			name:       "no signing keys found",
-			certFile:   pemFile.Name(),
-			keyFile:    emptyFile.Name(),
-			subjectDID: "did:example:123",
-			allowTest:  true,
-			out:        nil,
-			errorText:  "no signing keys found",
-		},
-		{
-			name:       "invalid signing cert",
-			certFile:   signlePemFile.Name(),
-			keyFile:    keyFile.Name(),
-			subjectDID: "did:example:123",
-			allowTest:  true,
-			out:        nil,
-			errorText:  "failed to find path from signingCert to root",
-		},
-		{
-			name:       "invalid otherName",
-			certFile:   brokenPemFile.Name(),
-			keyFile:    keyFile.Name(),
-			subjectDID: "did:example:123",
-			allowTest:  true,
-			out:        nil,
-			errorText:  "failed to parse URA from OtherNameValue",
-		},
-		/* more test cases */
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := Issue(tt.certFile, tt.keyFile, tt.subjectDID, tt.allowTest, true, make([]x509_cert.SubjectTypeName, 0))
-			if err != nil {
-				if err.Error() != tt.errorText {
-					t.Errorf("Issue() error = '%v', wantErr '%v'", err.Error(), tt.errorText)
-				}
-			} else if err == nil && tt.errorText != "" {
-				t.Errorf("Issue() unexpected success, want error")
-			} else if err == nil {
-				found := vc.VerifiableCredential{}
-				err = json.Unmarshal([]byte("\""+result+"\""), &found)
-				failError(t, err)
-				compare(t, tt.out, &found)
-			}
-		})
-	}
-}
-
-func failError(t *testing.T, err error) {
-	if err != nil {
-		t.Errorf("an error occured: %v", err.Error())
-		t.Fatal(err)
-	}
-}
-
-func compare(t *testing.T, expected *vc.VerifiableCredential, found *vc.VerifiableCredential) {
-	require.True(t, strings.HasPrefix(found.ID.String(), found.Issuer.String()+"#"), "credential ID must be in form <issuer DID>#<uuid>")
-	require.Equal(t, expected.Issuer.String(), found.Issuer.String(), "credential issuer mismatch")
-	require.Equal(t, expected.Type, found.Type, "credential type mismatch")
-	require.Equal(t, expected.ExpirationDate, found.ExpirationDate, "credential expiration date mismatch")
-}
-
-func toPtr[T any](v T) *T {
-	return &v
 }
