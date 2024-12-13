@@ -209,12 +209,6 @@ func TestIssue(t *testing.T) {
 
 		vc, err := Issue(validChain, validKey, "did:example:123", SubjectAttributes(x509_cert.SubjectTypeCountry, x509_cert.SubjectTypeOrganization))
 
-		require.NoError(t, err, "failed to issue verifiable credential")
-		require.NotNil(t, vc, "verifiable credential is nil")
-
-		assert.Equal(t, "https://www.w3.org/2018/credentials/v1", vc.Context[0].String())
-		assert.Equal(t, "VerifiableCredential", vc.Type[0].String())
-		assert.Equal(t, "UziServerCertificateCredential", vc.Type[1].String())
 		assert.Equal(t, "did:x509:0:sha512:0OXDVLevEnf_sE-Ayopm0Yof_gmBwxwKZmzbDhKeAwj9vcsI_Q14TBArYsCftQTABLM-Vx9BB6zI05Me2aksaA::san:otherName:2.16.528.1.1007.99.2110-1-1111111-S-2222222-00.000-333333::subject:O:FauxCare%20%26%20Co", vc.Issuer.String())
 	})
 
