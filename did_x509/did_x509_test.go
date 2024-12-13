@@ -269,17 +269,8 @@ func TestParseDid(t *testing.T) {
 			}
 
 			if tt.want != nil && got != nil {
-
 				assert.Equal(t, tt.want.Policies, got.Policies)
 			}
-
-			// if tt.want != nil && got != nil &&
-			// 	(tt.want.Version != got.Version ||
-			// 		tt.want.RootCertificateHashAlg != got.RootCertificateHashAlg ||
-			// 		tt.want.RootCertificateHash != got.RootCertificateHash ||
-			// 		!reflect.DeepEqual(tt.want.Policies, got.Policies)) {
-			// 	t.Errorf("ParseDid() expected = %v, got = %v", tt.want, got)
-			// }
 		})
 	}
 }
