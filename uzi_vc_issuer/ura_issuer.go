@@ -6,6 +6,7 @@ import (
 	"crypto/sha1"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"os"
@@ -23,6 +24,9 @@ import (
 	"github.com/nuts-foundation/uzi-did-x509-issuer/did_x509"
 	"github.com/nuts-foundation/uzi-did-x509-issuer/x509_cert"
 )
+
+// CredentialType holds the name of the X.509 credential type.
+const CredentialType = "X509Credential"
 
 // filename represents a valid file name. The file must exist.
 type fileName string
@@ -414,7 +418,7 @@ func uraCredential(issuer string, expirationDate time.Time, otherNameValues []*x
 	return &vc.VerifiableCredential{
 		Issuer:            ssi.MustParseURI(issuer),
 		Context:           []ssi.URI{ssi.MustParseURI("https://www.w3.org/2018/credentials/v1")},
-		Type:              []ssi.URI{ssi.MustParseURI("VerifiableCredential"), ssi.MustParseURI("UziServerCertificateCredential")},
+		Type:              []ssi.URI{ssi.MustParseURI("VerifiableCredential"), ssi.MustParseURI(CredentialType)},
 		ID:                &id,
 		IssuanceDate:      iat,
 		ExpirationDate:    &expirationDate,

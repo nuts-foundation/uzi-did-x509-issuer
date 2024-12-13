@@ -7,11 +7,12 @@
 > This repository contains experimental code and is not suitable for production usage!
 
 ## Description
+
 The UZI Server Certificaat Issuer is a Go-based tool designed for issuing Verifiable Credentials signed by a UZI Server Certificaat. The issuer creates a did:x509 based on the PKI certificate chain.
 
 ## Features
 
-The UZI Server Certificaat Issuer generated a Verifiable Credential of type UziServerCertificateCredential with the following features:
+The UZI Server Certificaat Issuer generated a Verifiable Credential of type X509Credential with the following features:
 
 - The DID method is a customized did:x509 DID pointing to the x5c header.
 - The x5c filled with the certificate chain. The chain is built from:
@@ -56,10 +57,11 @@ Follow these steps to set up the project:
    ```sh
    go build -ldflags="-w -s " -o ./issuer
    ```
-    or
+   or
    ```shell
    make build
    ```
+
 ## Usage
 
 1. **Run the application:**
@@ -105,9 +107,9 @@ The following command converts .cer files to PEM:
  openssl x509 -inform der -in certificate.cer -out certificate.pem
 ```
 
-## Validating a UziServerCertificateCredential
+## Validating a X509Credential
 
-The logic on Validating a UziServerCertificateCredential is described in the [VC_VALIDATION.md](VC_VALIDATION.md) file.
+The logic on Validating a X509Credential is described in the [VC_VALIDATION.md](VC_VALIDATION.md) file.
 
 ## Contributing
 
