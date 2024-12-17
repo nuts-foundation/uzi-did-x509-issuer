@@ -21,13 +21,16 @@ func TestPercentEncode(t *testing.T) {
 		{"a+b=c", "a%2Bb%3Dc"},
 		{"~!@#$%^&*()_+", "%7E%21%40%23%24%25%5E%26%2A%28%29_%2B"},
 		{"FauxCare & Co", "FauxCare%20%26%20Co"},
+		{"FåúxCaré & Có", "F%C3%A5%C3%BAxCar%C3%A9%20%26%20C%C3%B3"},
 	}
 
 	for _, test := range tests {
-		result := PercentEncode(test.input)
-		if result != test.expected {
-			t.Errorf("PercentEncode(%q) = %q; want %q", test.input, result, test.expected)
-		}
+		t.Run(test.input, func(t *testing.T) {
+			result := PercentEncode(test.input)
+			if result != test.expected {
+				t.Errorf("PercentEncode(%q) = %q; want %q", test.input, result, test.expected)
+			}
+		})
 	}
 }
 
