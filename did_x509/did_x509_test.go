@@ -3,6 +3,8 @@ package did_x509
 import (
 	"crypto/x509"
 	"encoding/base64"
+	"github.com/stretchr/testify/require"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -22,14 +24,16 @@ func TestPercentEncode(t *testing.T) {
 		{"~!@#$%^&*()_+", "%7E%21%40%23%24%25%5E%26%2A%28%29_%2B"},
 		{"FauxCare & Co", "FauxCare%20%26%20Co"},
 		{"FåúxCaré & Có", "F%C3%A5%C3%BAxCar%C3%A9%20%26%20C%C3%B3"},
+		{"💩", "%F0%9F%92%A9"},
 	}
 
 	for _, test := range tests {
 		t.Run(test.input, func(t *testing.T) {
 			result := PercentEncode(test.input)
-			if result != test.expected {
-				t.Errorf("PercentEncode(%q) = %q; want %q", test.input, result, test.expected)
-			}
+			require.Equal(t, test.expected, result)
+			unescaped, err := url.PathUnescape(result)
+			require.NoError(t, err)
+			require.Equal(t, test.input, unescaped)
 		})
 	}
 }
