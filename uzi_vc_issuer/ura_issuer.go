@@ -119,6 +119,8 @@ var defaultIssueOptions = &issueOptions{
 	subjectAttributes:          []x509_cert.SubjectTypeName{},
 }
 
+// NewValidCertificateChain reads a file and returns a valid certificate chain.
+// It returns an error if the file does not exist or is empty or the certificates cannot be parsed or the chain is not valid.
 func NewValidCertificateChain(fileName string) (validCertificateChain, error) {
 	certFileName, err := newFileName(fileName)
 
@@ -148,6 +150,8 @@ func NewValidCertificateChain(fileName string) (validCertificateChain, error) {
 	return chain, nil
 }
 
+// NewPrivateKey reads a file and returns an RSA private key.
+// It returns an error if the file does not exist or is empty or the key cannot be parsed.
 func NewPrivateKey(fileName string) (privateKey, error) {
 	keyFileName, err := newFileName(fileName)
 	if err != nil {
@@ -172,8 +176,12 @@ func NewPrivateKey(fileName string) (privateKey, error) {
 	return key, nil
 }
 
-func NewSubjectDID(did string) (subjectDID, error) {
-	return subjectDID(did), nil
+func NewSubjectDID(didStr string) (subjectDID, error) {
+	subject, err := did.ParseDID(didStr)
+	if err != nil {
+		return "", err
+	}
+	return subjectDID(subject.String()), nil
 }
 
 // newRSAPrivateKey parses a DER-encoded private key into an *rsa.PrivateKey.
@@ -210,7 +218,7 @@ func Issue(chain validCertificateChain, key privateKey, subject subjectDID, opti
 		types = append(types, x509_cert.SanTypePermanentIdentifierAssigner)
 	}
 
-	did, err := did_x509.CreateDid(chain[0], chain[len(chain)-1], options.subjectAttributes, types...)
+	issuer, err := did_x509.CreateDid(chain[0], chain[len(chain)-1], options.subjectAttributes, types...)
 	if err != nil {
 		return nil, err
 	}
@@ -236,7 +244,7 @@ func Issue(chain validCertificateChain, key privateKey, subject subjectDID, opti
 	if uzi != serialNumber {
 		return nil, errors.New("serial number does not match UZI number")
 	}
-	template, err := uraCredential(did, signingCert.NotAfter, otherNameValues, subjectTypes, subject)
+	template, err := uraCredential(*issuer, signingCert.NotAfter, otherNameValues, subjectTypes, subject)
 	if err != nil {
 		return nil, err
 	}
@@ -251,7 +259,7 @@ func Issue(chain validCertificateChain, key privateKey, subject subjectDID, opti
 		}
 
 		if hdrs.KeyID() == "" {
-			err := hdrs.Set("kid", did+"#0")
+			err := hdrs.Set("kid", issuer.String()+"#0")
 			if err != nil {
 				return "", err
 			}
@@ -274,7 +282,7 @@ func Issue(chain validCertificateChain, key privateKey, subject subjectDID, opti
 			return "", err
 		}
 
-		sign, err := jwt.Sign(token, jwt.WithKey(jwa.PS512, rsa.PrivateKey(*key), jws.WithProtectedHeaders(hdrs)))
+		sign, err := jwt.Sign(token, jwt.WithKey(jwa.PS256, rsa.PrivateKey(*key), jws.WithProtectedHeaders(hdrs)))
 		return string(sign), err
 	})
 }
@@ -397,7 +405,7 @@ func convertHeaders(headers map[string]interface{}) (jws.Headers, error) {
 }
 
 // uraCredential builds a VerifiableCredential for a given URA and UZI number, including the subject's DID.
-func uraCredential(issuer string, expirationDate time.Time, otherNameValues []*x509_cert.OtherNameValue, subjectTypes []*x509_cert.SubjectValue, subjectDID subjectDID) (*vc.VerifiableCredential, error) {
+func uraCredential(issuerDID did.DID, expirationDate time.Time, otherNameValues []*x509_cert.OtherNameValue, subjectTypes []*x509_cert.SubjectValue, subjectDID subjectDID) (*vc.VerifiableCredential, error) {
 	iat := time.Now()
 	subject := map[string]interface{}{
 		"id": subjectDID,
@@ -410,17 +418,12 @@ func uraCredential(issuer string, expirationDate time.Time, otherNameValues []*x
 		subject[string(subjectType.Type)] = subjectType.Value
 	}
 
-	issuerDID, err := did.ParseDID(issuer)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse issuer DID '%s': %w", issuer, err)
-	}
-
 	id := did.DIDURL{
-		DID:      *issuerDID,
+		DID:      issuerDID,
 		Fragment: uuid.NewString(),
 	}.URI()
 	return &vc.VerifiableCredential{
-		Issuer:            ssi.MustParseURI(issuer),
+		Issuer:            issuerDID.URI(),
 		Context:           []ssi.URI{ssi.MustParseURI("https://www.w3.org/2018/credentials/v1")},
 		Type:              []ssi.URI{ssi.MustParseURI("VerifiableCredential"), ssi.MustParseURI(CredentialType)},
 		ID:                &id,

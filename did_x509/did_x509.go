@@ -1,6 +1,7 @@
 package did_x509
 
 import (
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
 	"errors"
@@ -14,6 +15,12 @@ import (
 	"github.com/nuts-foundation/uzi-did-x509-issuer/x509_cert"
 )
 
+// hashAlg is the default hash algorithm used for hashing issuerCertificate
+const hashAlg = "sha256"
+
+// newHashFn is the default hash function used for hashing issuerCertificate
+var newHashFn = sha256.New
+
 type X509Did struct {
 	Version                string
 	RootCertificateHash    string
@@ -23,30 +30,30 @@ type X509Did struct {
 
 // FormatDid constructs a decentralized identifier (DID) from a certificate chain and an optional policy.
 // It returns the formatted DID string or an error if the root certificate or hash calculation fails.
-func FormatDid(caCert *x509.Certificate, policy ...string) (string, error) {
-	alg := "sha512"
-	rootHash, err := x509_cert.Hash(caCert.Raw, alg)
-	if err != nil {
-		return "", err
-	}
-	encodeToString := base64.RawURLEncoding.EncodeToString(rootHash)
-	fragments := []string{"did", "x509", "0", alg, encodeToString}
-	return strings.Join([]string{strings.Join(fragments, ":"), strings.Join(policy, "::")}, "::"), nil
+func FormatDid(issuerCert *x509.Certificate, policy ...string) (*did.DID, error) {
+	hasher := newHashFn()
+	hasher.Write(issuerCert.Raw)
+	sum := hasher.Sum(nil)
+
+	b64EncodedHash := base64.RawURLEncoding.EncodeToString(sum[:])
+	fragments := []string{"did", "x509", "0", hashAlg, b64EncodedHash}
+	didString := strings.Join([]string{strings.Join(fragments, ":"), strings.Join(policy, "::")}, "::")
+	return did.ParseDID(didString)
 }
 
 // CreateDid generates a Decentralized Identifier (DID) from a given certificate chain.
 // It extracts the Unique Registration Address (URA) from the chain, creates a policy with it, and formats the DID.
 // Returns the generated DID or an error if any step fails.
-func CreateDid(signingCert, caCert *x509.Certificate, subjectAttributes []x509_cert.SubjectTypeName, types ...x509_cert.SanTypeName) (string, error) {
+func CreateDid(signingCert, caCert *x509.Certificate, subjectAttributes []x509_cert.SubjectTypeName, types ...x509_cert.SanTypeName) (*did.DID, error) {
 	otherNames, err := x509_cert.SelectSanTypes(signingCert, types...)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	policies := CreateOtherNamePolicies(otherNames)
 
 	subjectTypes, err := x509_cert.SelectSubjectTypes(signingCert, subjectAttributes...)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	policies = append(policies, CreateSubjectPolicies(subjectTypes)...)

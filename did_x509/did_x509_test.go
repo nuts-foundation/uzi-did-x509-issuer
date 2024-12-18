@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/uzi-did-x509-issuer/x509_cert"
 	"github.com/stretchr/testify/assert"
 )
@@ -44,19 +45,18 @@ func TestCreateDidSingle(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	alg := "sha512"
-	hash, err := x509_cert.Hash(rootCert.Raw, alg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	rootHashString := base64.RawURLEncoding.EncodeToString(hash)
+	hash := newHashFn()
+	hash.Write(rootCert.Raw)
+	sum := hash.Sum(nil)
+
+	rootHashString := base64.RawURLEncoding.EncodeToString(sum[:])
 	types := []x509_cert.SanTypeName{x509_cert.SanTypeOtherName, x509_cert.SanTypePermanentIdentifierValue, x509_cert.SanTypePermanentIdentifierAssigner}
 
 	tests := []struct {
 		name         string
 		fields       fields
 		args         args
-		want         string
+		want         did.DID
 		errMsg       string
 		sanTypes     []x509_cert.SanTypeName
 		subjectTypes []x509_cert.SubjectTypeName
@@ -65,7 +65,7 @@ func TestCreateDidSingle(t *testing.T) {
 			name:     "Happy path",
 			fields:   fields{},
 			args:     args{chain: chain},
-			want:     strings.Join([]string{"did", "x509", "0", alg, rootHashString, "", "san", "otherName", "A_BIG_STRING", "", "san", "permanentIdentifier.value", "A_PERMANENT_STRING", "", "san", "permanentIdentifier.assigner", "2.16.528.1.1007.3.3"}, ":"),
+			want:     did.MustParseDID(strings.Join([]string{"did", "x509", "0", hashAlg, rootHashString, "", "san", "otherName", "A_BIG_STRING", "", "san", "permanentIdentifier.value", "A_PERMANENT_STRING", "", "san", "permanentIdentifier.assigner", "2.16.528.1.1007.3.3"}, ":")),
 			sanTypes: types,
 			errMsg:   "",
 		},
@@ -73,31 +73,31 @@ func TestCreateDidSingle(t *testing.T) {
 			name:     "Happy path",
 			fields:   fields{},
 			args:     args{chain: chain},
-			want:     strings.Join([]string{"did", "x509", "0", alg, rootHashString, "", "san", "otherName", "A_BIG_STRING", "", "san", "permanentIdentifier.value", "A_PERMANENT_STRING"}, ":"),
+			want:     did.MustParseDID(strings.Join([]string{"did", "x509", "0", hashAlg, rootHashString, "", "san", "otherName", "A_BIG_STRING", "", "san", "permanentIdentifier.value", "A_PERMANENT_STRING"}, ":")),
 			sanTypes: []x509_cert.SanTypeName{x509_cert.SanTypeOtherName, x509_cert.SanTypePermanentIdentifierValue},
 			errMsg:   "",
 		},
 		{
-			name:     "Happy path",
+			name:     "ok - with san othername",
 			fields:   fields{},
 			args:     args{chain: chain},
-			want:     strings.Join([]string{"did", "x509", "0", alg, rootHashString, "", "san", "otherName", "A_BIG_STRING"}, ":"),
+			want:     did.MustParseDID(strings.Join([]string{"did", "x509", "0", hashAlg, rootHashString, "", "san", "otherName", "A_BIG_STRING"}, ":")),
 			sanTypes: []x509_cert.SanTypeName{x509_cert.SanTypeOtherName},
 			errMsg:   "",
 		},
 		{
-			name:     "Happy path",
+			name:     "ok - with san permanentIdentifier.value",
 			fields:   fields{},
 			args:     args{chain: chain},
-			want:     strings.Join([]string{"did", "x509", "0", alg, rootHashString, "", "san", "permanentIdentifier.value", "A_PERMANENT_STRING"}, ":"),
+			want:     did.MustParseDID(strings.Join([]string{"did", "x509", "0", hashAlg, rootHashString, "", "san", "permanentIdentifier.value", "A_PERMANENT_STRING"}, ":")),
 			sanTypes: []x509_cert.SanTypeName{x509_cert.SanTypePermanentIdentifierValue},
 			errMsg:   "",
 		},
 		{
-			name:     "Happy path",
+			name:     "ok - with san permanentIdentifier.assigner",
 			fields:   fields{},
 			args:     args{chain: chain},
-			want:     strings.Join([]string{"did", "x509", "0", alg, rootHashString, "", "san", "permanentIdentifier.assigner", "2.16.528.1.1007.3.3"}, ":"),
+			want:     did.MustParseDID(strings.Join([]string{"did", "x509", "0", hashAlg, rootHashString, "", "san", "permanentIdentifier.assigner", "2.16.528.1.1007.3.3"}, ":")),
 			sanTypes: []x509_cert.SanTypeName{x509_cert.SanTypePermanentIdentifierAssigner},
 			errMsg:   "",
 		},
@@ -115,7 +115,7 @@ func TestCreateDidSingle(t *testing.T) {
 				}
 			}
 
-			if got != tt.want {
+			if *got != tt.want {
 				t.Errorf("DefaultDidProcessor.CreateDid() = \n%v\n, want: \n%v\n", got, tt.want)
 			}
 		})
@@ -132,12 +132,11 @@ func TestCreateDidDouble(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	alg := "sha512"
-	hash, err := x509_cert.Hash(rootCert.Raw, alg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	rootHashString := base64.RawURLEncoding.EncodeToString(hash)
+	hash := newHashFn()
+	hash.Write(rootCert.Raw)
+	sum := hash.Sum(nil)
+
+	rootHashString := base64.RawURLEncoding.EncodeToString(sum[:])
 	sanTypeNames := []x509_cert.SanTypeName{x509_cert.SanTypeOtherName, x509_cert.SanTypePermanentIdentifierValue, x509_cert.SanTypePermanentIdentifierAssigner}
 	sanTypeNamesShort := []x509_cert.SanTypeName{x509_cert.SanTypeOtherName}
 	subjectTypeNamesShort := []x509_cert.SubjectTypeName{x509_cert.SubjectTypeOrganization}
@@ -155,7 +154,7 @@ func TestCreateDidDouble(t *testing.T) {
 			name:     "Happy path san",
 			fields:   fields{},
 			args:     args{chain: chain},
-			want:     strings.Join([]string{"did", "x509", "0", alg, rootHashString, "", "san", "otherName", "A_BIG_STRING", "", "san", "permanentIdentifier.value", "A_SMALL_STRING", "", "san", "permanentIdentifier.assigner", "2.16.528.1.1007.3.3"}, ":"),
+			want:     strings.Join([]string{"did", "x509", "0", hashAlg, rootHashString, "", "san", "otherName", "A_BIG_STRING", "", "san", "permanentIdentifier.value", "A_SMALL_STRING", "", "san", "permanentIdentifier.assigner", "2.16.528.1.1007.3.3"}, ":"),
 			sanTypes: sanTypeNames,
 			errMsg:   "",
 		},
@@ -163,7 +162,7 @@ func TestCreateDidDouble(t *testing.T) {
 			name:     "Happy path short san",
 			fields:   fields{},
 			args:     args{chain: chain},
-			want:     strings.Join([]string{"did", "x509", "0", alg, rootHashString, "", "san", "otherName", "A_BIG_STRING"}, ":"),
+			want:     strings.Join([]string{"did", "x509", "0", hashAlg, rootHashString, "", "san", "otherName", "A_BIG_STRING"}, ":"),
 			sanTypes: sanTypeNamesShort,
 			errMsg:   "",
 		},
@@ -171,7 +170,7 @@ func TestCreateDidDouble(t *testing.T) {
 			name:         "Happy path short san",
 			fields:       fields{},
 			args:         args{chain: chain},
-			want:         strings.Join([]string{"did", "x509", "0", alg, rootHashString, "", "subject", "O", "FauxCare"}, ":"),
+			want:         strings.Join([]string{"did", "x509", "0", hashAlg, rootHashString, "", "subject", "O", "FauxCare"}, ":"),
 			subjectTypes: subjectTypeNamesShort,
 			errMsg:       "",
 		},
@@ -179,7 +178,7 @@ func TestCreateDidDouble(t *testing.T) {
 			name:         "Happy path mixed",
 			fields:       fields{},
 			args:         args{chain: chain},
-			want:         strings.Join([]string{"did", "x509", "0", alg, rootHashString, "", "san", "otherName", "A_BIG_STRING", "", "subject", "O", "FauxCare"}, ":"),
+			want:         strings.Join([]string{"did", "x509", "0", hashAlg, rootHashString, "", "san", "otherName", "A_BIG_STRING", "", "subject", "O", "FauxCare"}, ":"),
 			sanTypes:     sanTypeNamesShort,
 			subjectTypes: subjectTypeNamesShort,
 			errMsg:       "",
@@ -198,7 +197,7 @@ func TestCreateDidDouble(t *testing.T) {
 				}
 			}
 
-			if got != tt.want {
+			if got != nil && got.String() != tt.want {
 				t.Errorf("DefaultDidProcessor.CreateDid() = \n%v\n, want: \n%v\n", got, tt.want)
 			}
 		})

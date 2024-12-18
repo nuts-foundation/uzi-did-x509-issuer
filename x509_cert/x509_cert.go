@@ -2,17 +2,14 @@ package x509_cert
 
 import (
 	"crypto/rsa"
-	"crypto/sha1"
-	"crypto/sha256"
-	"crypto/sha512"
 	"crypto/x509"
 	"encoding/asn1"
 	"errors"
 	"fmt"
-	"github.com/lestrrat-go/jwx/v2/cert"
-	"golang.org/x/crypto/sha3"
 	"regexp"
 	"strings"
+
+	"github.com/lestrrat-go/jwx/v2/cert"
 )
 
 // SubjectAlternativeNameType represents the ASN.1 Object Identifier for Subject Alternative Name.
@@ -27,27 +24,6 @@ var (
 // e.g.: 1-123456789-S-88888801-00.000-12345678
 // var RegexOtherNameValue = regexp.MustCompile(`2\.16\.528\.1\.1007.\d+\.\d+-\d+-\d+-S-(\d+)-00\.000-\d+`)
 var RegexOtherNameValue = regexp.MustCompile(`^[0-9.]+-\d+-(\d+)-S-(\d+)-00\.000-(\d+)$`)
-
-// Hash computes the hash of the input data using the specified algorithm.
-// Supported algorithms include "sha1", "sha256", "sha384", and "sha512".
-// Returns the computed hash as a byte slice or an error if the algorithm is not supported.
-func Hash(data []byte, alg string) ([]byte, error) {
-	switch alg {
-	case "sha1":
-		sum := sha1.Sum(data)
-		return sum[:], nil
-	case "sha256":
-		sum := sha256.Sum256(data)
-		return sum[:], nil
-	case "sha384":
-		sum := sha3.Sum384(data)
-		return sum[:], nil
-	case "sha512":
-		sum := sha512.Sum512(data)
-		return sum[:], nil
-	}
-	return nil, fmt.Errorf("unsupported hash algorithm: %s", alg)
-}
 
 // ParseCertificates parses a slice of DER-encoded byte arrays into a slice of x509.Certificate.
 // It returns an error if any of the certificates cannot be parsed.
