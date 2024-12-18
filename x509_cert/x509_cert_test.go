@@ -9,7 +9,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/crypto/sha3"
 	"strings"
 	"testing"
 )
@@ -17,7 +16,7 @@ import (
 func TestHash(t *testing.T) {
 	sha1sum := sha1.Sum([]byte("test"))
 	sha256sum := sha256.Sum256([]byte("test"))
-	sha384sum := sha3.Sum384([]byte("test"))
+	sha384sum := sha512.Sum384([]byte("test"))
 	sha512sum := sha512.Sum512([]byte("test"))
 	testCases := []struct {
 		name  string

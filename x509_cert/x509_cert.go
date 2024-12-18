@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/lestrrat-go/jwx/v2/cert"
-	"golang.org/x/crypto/sha3"
 	"regexp"
 	"strings"
 )
@@ -40,7 +39,7 @@ func Hash(data []byte, alg string) ([]byte, error) {
 		sum := sha256.Sum256(data)
 		return sum[:], nil
 	case "sha384":
-		sum := sha3.Sum384(data)
+		sum := sha512.Sum384(data)
 		return sum[:], nil
 	case "sha512":
 		sum := sha512.Sum512(data)
