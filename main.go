@@ -50,7 +50,6 @@ func main() {
 			fmt.Println(err)
 			os.Exit(-1)
 		}
-		fmt.Println("VC result:")
 		err = printLineAndFlush(jwt)
 		if err != nil {
 			fmt.Println(err)

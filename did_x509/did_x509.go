@@ -6,13 +6,11 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/uzi-did-x509-issuer/x509_cert"
 	"net/url"
 	"regexp"
 	"strings"
-	"unicode"
-
-	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/uzi-did-x509-issuer/x509_cert"
 )
 
 // hashAlg is the default hash algorithm used for hashing issuerCertificate
@@ -67,8 +65,15 @@ func CreateDid(signingCert, caCert *x509.Certificate, subjectAttributes []x509_c
 // See https://github.com/golang/go/issues/27559#issuecomment-449652574
 func PercentEncode(input string) string {
 	var encoded strings.Builder
-	for _, r := range input {
-		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' || r == '_' || r == '.' {
+	// Unicode characters might consist of multiple bytes, so first we encode the string using url.PathEscape (which supports multi-byte characters),
+	// then we encode the characters that weren't encoded by url.PathEscape, but need to be encoded according to the DID specification.
+	preEscaped := url.PathEscape(input)
+	encoded.Grow(len(preEscaped))
+	for _, r := range preEscaped {
+		if r == '%' ||
+			(r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z') ||
+			(r >= '0' && r <= '9') ||
+			r == '-' || r == '.' || r == '_' {
 			encoded.WriteRune(r)
 		} else {
 			encoded.WriteString(fmt.Sprintf("%%%02X", r))
