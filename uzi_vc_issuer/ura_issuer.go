@@ -410,12 +410,20 @@ func uraCredential(issuerDID did.DID, expirationDate time.Time, otherNameValues 
 	subject := map[string]interface{}{
 		"id": subjectDID,
 	}
+	var otherNameMap = map[string]string{}
 	for _, otherNameValue := range otherNameValues {
-		subject[string(otherNameValue.Type)] = otherNameValue.Value
+		otherNameMap[string(otherNameValue.Type)] = otherNameValue.Value
+	}
+	if len(otherNameMap) > 0 {
+		subject[string(x509_cert.PolicyTypeSan)] = otherNameMap
 	}
 
+	var subjectMap = map[string]string{}
 	for _, subjectType := range subjectTypes {
-		subject[string(subjectType.Type)] = subjectType.Value
+		subjectMap[string(subjectType.Type)] = subjectType.Value
+	}
+	if len(subjectMap) > 0 {
+		subject[string(x509_cert.PolicyTypeSubject)] = subjectMap
 	}
 
 	id := did.DIDURL{
