@@ -190,11 +190,15 @@ func TestIssue(t *testing.T) {
 		assert.Equal(t, "did:x509:0:sha256:IzvPueXLRjJtLtIicMzV3icpiLQPemu8lBv6oRGjm-o::san:otherName:2.16.528.1.1007.99.2110-1-1111111-S-2222222-00.000-333333::subject:O:FauxCare", vc.Issuer.String())
 
 		expectedCredentialSubject := []interface{}([]interface{}{map[string]interface{}{
-			"id":                           "did:example:123",
-			"O":                            "FauxCare",
-			"otherName":                    "2.16.528.1.1007.99.2110-1-1111111-S-2222222-00.000-333333",
-			"permanentIdentifier.assigner": "2.16.528.1.1007.3.3",
-			"permanentIdentifier.value":    "2222222",
+			"id": "did:example:123",
+			"subject": map[string]interface{}{
+				"O": "FauxCare",
+			},
+			"san": map[string]interface{}{
+				"otherName":                    "2.16.528.1.1007.99.2110-1-1111111-S-2222222-00.000-333333",
+				"permanentIdentifier.assigner": "2.16.528.1.1007.3.3",
+				"permanentIdentifier.value":    "2222222",
+			},
 		}})
 
 		assert.Equal(t, expectedCredentialSubject, vc.CredentialSubject)
