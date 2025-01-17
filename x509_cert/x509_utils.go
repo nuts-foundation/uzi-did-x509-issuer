@@ -2,7 +2,6 @@ package x509_cert
 
 import (
 	"crypto/x509"
-	"crypto/x509/pkix"
 	"encoding/asn1"
 	"errors"
 	"fmt"
@@ -10,12 +9,12 @@ import (
 	"slices"
 )
 
-type OtherName struct {
+type otherName struct {
 	TypeID asn1.ObjectIdentifier
 	Value  asn1.RawValue `asn1:"tag:0,explicit"`
 }
 
-type StingAndOid struct {
+type stringAndOid struct {
 	Value    string
 	Assigner asn1.ObjectIdentifier
 }
@@ -26,8 +25,6 @@ const (
 	PolicyTypeSan     PolicyType = "san"
 	PolicyTypeSubject PolicyType = "subject"
 )
-
-type SanType pkix.AttributeTypeAndValue
 
 type SanTypeName string
 
@@ -177,13 +174,13 @@ func findPermanentIdentifiers(cert *x509.Certificate) (string, asn1.ObjectIdenti
 				if tag != 0 {
 					return nil
 				}
-				var other OtherName
+				var other otherName
 				_, err := asn1.UnmarshalWithParams(data, &other, "tag:0")
 				if err != nil {
 					return fmt.Errorf("could not parse requested other SAN: %v", err)
 				}
 				if other.TypeID.Equal(internal.PermanentIdentifierType) {
-					var x StingAndOid
+					var x stringAndOid
 					_, err = asn1.Unmarshal(other.Value.Bytes, &x)
 					if err != nil {
 						return err
@@ -212,7 +209,7 @@ func findOtherNameValue(cert *x509.Certificate) (string, error) {
 				if tag != 0 {
 					return nil
 				}
-				var other OtherName
+				var other otherName
 				_, err := asn1.UnmarshalWithParams(data, &other, "tag:0")
 				if err != nil {
 					return fmt.Errorf("could not parse requested other SAN: %v", err)
