@@ -1,4 +1,4 @@
-# did:x509 Golang Toolkit
+# Golang did:x509 and X509Credential Toolkit
 
 [![Maintainability](https://api.codeclimate.com/v1/badges/f92496250890e40900aa/maintainability)](https://codeclimate.com/github/nuts-foundation/go-didx509-toolkit/maintainability)
 [![Test Coverage](https://api.codeclimate.com/v1/badges/f92496250890e40900aa/test_coverage)](https://codeclimate.com/github/nuts-foundation/go-didx509-toolkit/test_coverage)
