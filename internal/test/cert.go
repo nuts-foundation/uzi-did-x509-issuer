@@ -1,42 +1,31 @@
-package x509_cert
+package test
 
 import (
-	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/pem"
-	"fmt"
+	"github.com/nuts-foundation/uzi-did-x509-issuer/internal"
 	"math/big"
 	"time"
 
 	"github.com/lestrrat-go/jwx/v2/cert"
 )
 
-const (
-	CertificateBlockType = "CERTIFICATE"
-	RSAPrivKeyBlockType  = "PRIVATE KEY"
-)
+var permanentIdentifierAssigner = asn1.ObjectIdentifier{2, 16, 528, 1, 1007, 3, 3}
+var subjectAlternativeNameType = asn1.ObjectIdentifier{2, 5, 29, 17}
+var otherNameType = asn1.ObjectIdentifier{2, 5, 5, 5}
 
-func EncodeRSAPrivateKey(key *rsa.PrivateKey) ([]byte, error) {
-	b := bytes.Buffer{}
-	err := pem.Encode(&b, &pem.Block{Type: RSAPrivKeyBlockType, Bytes: x509.MarshalPKCS1PrivateKey(key)})
-	if err != nil {
-		return []byte{}, err
-	}
-	return b.Bytes(), nil
+type OtherName struct {
+	TypeID asn1.ObjectIdentifier
+	Value  asn1.RawValue `asn1:"tag:0,explicit"`
 }
 
-func EncodeCertificates(certs ...*x509.Certificate) ([]byte, error) {
-	b := bytes.Buffer{}
-	for _, c := range certs {
-		if err := pem.Encode(&b, &pem.Block{Type: CertificateBlockType, Bytes: c.Raw}); err != nil {
-			return []byte{}, err
-		}
-	}
-	return b.Bytes(), nil
+type StringAndOid struct {
+	Value    string
+	Assigner asn1.ObjectIdentifier
 }
 
 // BuildSelfSignedCertChain generates a certificate chain, including root, intermediate, and signing certificates.
@@ -103,7 +92,7 @@ func BuildSelfSignedCertChain(identifier string, permanentIdentifierValue string
 		}
 	}
 
-	chainPems, err = FixChainHeaders(chainPems)
+	chainPems, err = internal.FixChainHeaders(chainPems)
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
@@ -145,7 +134,7 @@ func SigningCertTemplate(serialNumber *big.Int, identifier string, permanentIden
 		return nil, err
 	}
 	otherName := OtherName{
-		TypeID: OtherNameType,
+		TypeID: otherNameType,
 		Value: asn1.RawValue{
 			Class:      2,
 			Tag:        0,
@@ -162,16 +151,16 @@ func SigningCertTemplate(serialNumber *big.Int, identifier string, permanentIden
 	list = append(list, *raw)
 
 	if permanentIdentifierValue != "" {
-		permId := StingAndOid{
+		permId := StringAndOid{
 			Value:    permanentIdentifierValue,
-			Assigner: UraAssigner,
+			Assigner: permanentIdentifierAssigner,
 		}
 		raw, err = toRawValue(permId, "seq")
 		if err != nil {
 			return nil, err
 		}
 		permOtherName := OtherName{
-			TypeID: PermanentIdentifierType,
+			TypeID: internal.PermanentIdentifierType,
 			Value: asn1.RawValue{
 				Class:      2,
 				Tag:        0,
@@ -202,18 +191,12 @@ func SigningCertTemplate(serialNumber *big.Int, identifier string, permanentIden
 		BasicConstraintsValid: true,
 		ExtraExtensions: []pkix.Extension{
 			{
-				Id:       SubjectAlternativeNameType,
+				Id:       subjectAlternativeNameType,
 				Critical: false,
 				Value:    marshal,
 			},
 		},
 	}
-	uzi, _, _, err := ParseUraFromOtherNameValue(identifier)
-	if err != nil {
-		// Crate an incorrect uzi in order to test invalid UZI numbers
-		uzi = "9876543212"
-	}
-	tmpl.Subject.SerialNumber = uzi
 	tmpl.KeyUsage = x509.KeyUsageDigitalSignature
 	tmpl.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
 	return &tmpl, nil
@@ -250,57 +233,4 @@ func CreateCert(template, parent *x509.Certificate, pub interface{}, parentPriv 
 	b := pem.Block{Type: "CERTIFICATE", Bytes: certDER}
 	certPEM = pem.EncodeToMemory(&b)
 	return cert, certPEM, err
-}
-
-// DebugUnmarshall recursively unmarshalls ASN.1 encoded data and prints the structure with parsed values.
-// Keep this method for debug purposes in the future.
-func DebugUnmarshall(data []byte, depth int) error {
-	for len(data) > 0 {
-		var x asn1.RawValue
-		tail, err := asn1.Unmarshal(data, &x)
-		if err != nil {
-			return err
-		}
-		prefix := ""
-		for i := 0; i < depth; i++ {
-			prefix += "\t"
-		}
-		fmt.Printf("%sUnmarshalled: compound: %t, tag: %d, class: %d", prefix, x.IsCompound, x.Tag, x.Class)
-
-		if x.Bytes != nil {
-			if x.IsCompound || x.Tag == 0 {
-				fmt.Println()
-				err := DebugUnmarshall(x.Bytes, depth+1)
-				if err != nil {
-					return err
-				}
-			} else {
-				switch x.Tag {
-				case asn1.TagBoolean:
-					fmt.Printf(", value boolean: %v", x.Bytes)
-				case asn1.TagOID:
-					fmt.Printf(", value: OID: %v", x.Bytes)
-				case asn1.TagInteger:
-					fmt.Printf(", value: integer: %v", x.Bytes)
-				case asn1.TagUTF8String:
-					fmt.Printf(", value: bitstring: %v", x.Bytes)
-				case asn1.TagBitString:
-					fmt.Printf(", value: bitstring: %v", x.Bytes)
-				case asn1.TagOctetString:
-					fmt.Printf(", value: octetstring: %v", x.Bytes)
-				case asn1.TagIA5String:
-					fmt.Printf(", value: TagIA5String: %v", x.Bytes)
-				case asn1.TagNull:
-					fmt.Printf(", value: null")
-				default:
-					return fmt.Errorf("unknown tag: %d", x.Tag)
-
-				}
-				fmt.Println()
-			}
-		}
-		data = tail
-	}
-
-	return nil
 }

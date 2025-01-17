@@ -150,13 +150,3 @@ func CreateSubjectPolicies(subjectValues []*x509_cert.SubjectValue) []string {
 	}
 	return policies
 }
-
-// FindRootCertificate traverses a chain of x509 certificates and returns the first certificate that is a CA.
-func FindRootCertificate(chain []*x509.Certificate) (*x509.Certificate, error) {
-	for _, cert := range chain {
-		if x509_cert.IsRootCa(cert) {
-			return cert, nil
-		}
-	}
-	return nil, fmt.Errorf("cannot find root certificate")
-}

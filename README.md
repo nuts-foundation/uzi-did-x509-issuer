@@ -1,67 +1,27 @@
-# Nuts X509 Certificate Issuer
+# did:x509 Golang Toolkit
 
 [![Maintainability](https://api.codeclimate.com/v1/badges/f92496250890e40900aa/maintainability)](https://codeclimate.com/github/nuts-foundation/uzi-did-x509-issuer/maintainability)
 [![Test Coverage](https://api.codeclimate.com/v1/badges/f92496250890e40900aa/test_coverage)](https://codeclimate.com/github/nuts-foundation/uzi-did-x509-issuer/test_coverage)
 
-> [!CAUTION]
-> This repository contains experimental code and is not suitable for production usage!
-
 ## Description
 
-The X509 certificate Issuer is a Go-based tool designed for issuing Verifiable Credentials signed by a X509 certificate. The issuer creates a did:x509 based on the PKI certificate chain.
-Its main purspose is to create verificable credentials form certificates issued by the [UZI certificate chain from the CIBG registry](https://www.zorgcsp.nl/ca-certificaten).
+This is a Golang-based toolkit for creating `did:x509` DIDs and `X509Credential`s.
+`X509Credential`s can be used present the identity information contained in the `did:x509` DID as Verfiaible Credential.
+
+Its original purpose is to create Verifiable Credentials from certificates issued by the [UZI certificate chain from the CIBG registry](https://www.zorgcsp.nl/ca-certificaten).
 
 ## Features
 
-The X509 certificate Issuer generated a Verifiable Credential of type X509Credential with the following features:
+### Creating `did:x509` DIDs
 
-- The DID method is a customized did:x509 DID pointing to the x5c header.
-- The x5c filled with the certificate chain. The chain is built from:
-  - The provided UZI server (Test) certificate
-  - All the required certificates from the [UZI register](https://www.zorgcsp.nl/certificate-revocation-lists-crl-s).
-  - If the test mode is enabled, the [Test UZI register](https://acceptatie.zorgcsp.nl/ca-certificaten)
-- Signed by the private key of the X509 certificate.
-- The VC issued to the provided DID and name.
+It creates `did:x509` DIDs as specified by https://trustoverip.github.io/tswg-did-x509-method-specification/.
+It extends this DID method specification by adding support for the `san:otherName` field in the certificate (required by the CIBG UZI certificate use case).
 
-## Note on security, trust, and secrecy
+### Issuing `X509Credential`s
 
-The VC that is signed by this application are cryptographic proofs, signed by the private key used in the X509 certificate process. Note that:
+### Validating `X509Credential`s
 
-- This private key is supposed to be kept very secret.
-- The Subject DID of the signed credential is mandated with cryptographic proof to act on behalf of the owner of the private key on the NUTS network.
-
-## Prerequisites
-
-Before you begin, ensure you have met the following requirements:
-
-- You have installed Go SDK 1.23.1 or compatible version.
-- You are using a Unix-based operating system like macOS or Linux.
-- You have the necessary permissions to install software and manage certificates.
-
-## Installation
-
-Follow these steps to set up the project:
-
-1. **Clone the repository:**
-   ```sh
-   git clone https://github.com/nuts-foundation/uzi-did-x509-issuer
-   ```
-2. **Change to the project directory:**
-   ```sh
-   cd uzi-did-x509-issuer
-   ```
-3. **Download dependencies:**
-   ```sh
-   go mod download && go mod verify
-   ```
-4. **Build the project:**
-   ```sh
-   go build -ldflags="-w -s " -o ./issuer
-   ```
-   or
-   ```shell
-   make build
-   ```
+TODO
 
 ## Usage
 
@@ -127,8 +87,4 @@ Please ensure your code follows the project's coding conventions and passes all 
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
-## Contact
-
-If you have any questions or suggestions, feel free to open an issue or contact the project maintainers at [roland@headease.nl](mailto:roland@headease.nl).
+This project is licensed under the GPLv3 License. See the [LICENSE](LICENSE) file for details.

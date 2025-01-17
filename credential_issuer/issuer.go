@@ -1,4 +1,4 @@
-package uzi_vc_issuer
+package credential_issuer
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/uzi-did-x509-issuer/internal"
 	"os"
 	"time"
 
@@ -37,7 +38,7 @@ type nonEmptyBytes []byte
 // newFileName creates a new fileName from a string. It returns an error if the file does not exist.
 func newFileName(name string) (fileName, error) {
 	if _, err := os.Stat(name); err != nil {
-		return fileName(""), err
+		return "", err
 	}
 
 	return fileName(name), nil
@@ -52,7 +53,7 @@ func readFile(name fileName) (nonEmptyBytes, error) {
 	if len(bytes) == 0 {
 		return nil, errors.New("file is empty")
 	}
-	return nonEmptyBytes(bytes), nil
+	return bytes, nil
 }
 
 // pemBlocks represents a list of one or more PEM blocks.
@@ -102,7 +103,6 @@ type subjectDID string
 
 // issueOptions contains values for options for issuing a UZI VC.
 type issueOptions struct {
-	allowTestUraCa             bool
 	includePermanentIdentifier bool
 	subjectAttributes          []x509_cert.SubjectTypeName
 }
@@ -114,7 +114,6 @@ type Option = func(*issueOptions)
 type X509Credential string
 
 var defaultIssueOptions = &issueOptions{
-	allowTestUraCa:             false,
 	includePermanentIdentifier: false,
 	subjectAttributes:          []x509_cert.SubjectTypeName{},
 }
@@ -236,15 +235,7 @@ func Issue(chain validCertificateChain, key privateKey, subject subjectDID, opti
 	if err != nil {
 		return nil, err
 	}
-	stringValue, err := x509_cert.FindOtherNameValue(otherNameValues, x509_cert.PolicyTypeSan, x509_cert.SanTypeOtherName)
-	uzi, _, _, err := x509_cert.ParseUraFromOtherNameValue(stringValue)
-	if err != nil {
-		return nil, err
-	}
-	if uzi != serialNumber {
-		return nil, errors.New("serial number does not match UZI number")
-	}
-	template, err := uraCredential(*issuer, signingCert.NotAfter, otherNameValues, subjectTypes, subject)
+	template, err := buildCredential(*issuer, signingCert.NotAfter, otherNameValues, subjectTypes, subject)
 	if err != nil {
 		return nil, err
 	}
@@ -287,20 +278,6 @@ func Issue(chain validCertificateChain, key privateKey, subject subjectDID, opti
 	})
 }
 
-// AllowTestUraCa allows the use of Test URA server certificates.
-func AllowTestUraCa(allow bool) Option {
-	return func(o *issueOptions) {
-		o.allowTestUraCa = allow
-	}
-}
-
-// IncludePermanentIdentifier includes the permanent identifier in the UZI VC.
-func IncludePermanentIdentifier(include bool) Option {
-	return func(o *issueOptions) {
-		o.includePermanentIdentifier = include
-	}
-}
-
 // SubjectAttributes sets the subject attributes to include in the UZI VC.
 func SubjectAttributes(attributes ...x509_cert.SubjectTypeName) Option {
 	return func(o *issueOptions) {
@@ -318,26 +295,8 @@ func marshalChain(certificates ...*x509.Certificate) (*cert.Chain, error) {
 			return nil, err
 		}
 	}
-	headers, err := x509_cert.FixChainHeaders(chainPems)
+	headers, err := internal.FixChainHeaders(chainPems)
 	return headers, err
-}
-
-func validateChain(certs []*x509.Certificate) error {
-	var prev *x509.Certificate = nil
-	for i := range certs {
-		certificate := certs[len(certs)-i-1]
-		if prev != nil {
-			err := prev.CheckSignatureFrom(certificate)
-			if err != nil {
-				return err
-			}
-		}
-		if x509_cert.IsRootCa(certificate) {
-			return nil
-		}
-		prev = certificate
-	}
-	return errors.New("failed to find a path to the root certificate in the chain, are you using a (Test) URA server certificate (Hint: the --test mode is required for Test URA server certificates)")
 }
 
 // newCertificateChain constructs a valid certificate chain from a given list of certificates and a starting signing certificate.
@@ -404,18 +363,25 @@ func convertHeaders(headers map[string]interface{}) (jws.Headers, error) {
 	return hdr, nil
 }
 
-// uraCredential builds a VerifiableCredential for a given URA and UZI number, including the subject's DID.
-func uraCredential(issuerDID did.DID, expirationDate time.Time, otherNameValues []*x509_cert.OtherNameValue, subjectTypes []*x509_cert.SubjectValue, subjectDID subjectDID) (*vc.VerifiableCredential, error) {
+func buildCredential(issuerDID did.DID, expirationDate time.Time, otherNameValues []*x509_cert.OtherNameValue, subjectTypes []*x509_cert.SubjectValue, subjectDID subjectDID) (*vc.VerifiableCredential, error) {
 	iat := time.Now()
 	subject := map[string]interface{}{
 		"id": subjectDID,
 	}
+	addSubjectPolicyProperty := func(policy string, propKey string, propValue string) {
+		policyProps, ok := subject[policy].(map[string]interface{})
+		if !ok {
+			policyProps = make(map[string]interface{})
+			subject[policy] = policyProps
+		}
+		policyProps[propKey] = propValue
+	}
 	for _, otherNameValue := range otherNameValues {
-		subject[string(otherNameValue.Type)] = otherNameValue.Value
+		addSubjectPolicyProperty(string(otherNameValue.PolicyType), string(otherNameValue.Type), otherNameValue.Value)
 	}
 
 	for _, subjectType := range subjectTypes {
-		subject[string(subjectType.Type)] = subjectType.Value
+		addSubjectPolicyProperty(string(subjectType.PolicyType), string(subjectType.Type), subjectType.Value)
 	}
 
 	id := did.DIDURL{

@@ -1,4 +1,4 @@
-package uzi_vc_issuer
+package credential_issuer
 
 import (
 	"crypto/rsa"
@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestBuildUraVerifiableCredential(t *testing.T) {
+func TestBuildX509Credential(t *testing.T) {
 
 	chainBytes, err := os.ReadFile("testdata/valid_chain.pem")
 	require.NoError(t, err, "failed to read chain")
@@ -61,16 +61,6 @@ func TestBuildUraVerifiableCredential(t *testing.T) {
 			errorText: "serialNumber not found in signing certificate",
 		},
 		{
-			name: "nok - invalid signing serial in signing cert",
-			in: func(t *testing.T) ([]*x509.Certificate, *rsa.PrivateKey, string) {
-				certs, privKey, didStr := defaultIn(t)
-
-				certs[0].Subject.SerialNumber = "invalid-serial-number"
-				return certs, privKey, didStr
-			},
-			errorText: "serial number does not match UZI number",
-		},
-		{
 			name: "nok - invalid signing certificate 2",
 			in: func(t *testing.T) ([]*x509.Certificate, *rsa.PrivateKey, string) {
 				certs, privKey, didStr := defaultIn(t)
@@ -106,10 +96,10 @@ func TestBuildUraVerifiableCredential(t *testing.T) {
 			_, err := Issue(certificates, signingKey, subjectDID(subject))
 			if err != nil {
 				if err.Error() != tt.errorText {
-					t.Errorf("BuildUraVerifiableCredential() error = '%v', wantErr '%v'", err.Error(), tt.errorText)
+					t.Errorf("TestBuildX509Credential() error = '%v', wantErr '%v'", err.Error(), tt.errorText)
 				}
 			} else if err == nil && tt.errorText != "" {
-				t.Errorf("BuildUraVerifiableCredential() unexpected success, want error")
+				t.Errorf("TestBuildX509Credential() unexpected success, want error")
 			}
 		})
 	}
@@ -189,13 +179,17 @@ func TestIssue(t *testing.T) {
 		assert.True(t, vc.IsType(ssi.MustParseURI("X509Credential")))
 		assert.Equal(t, "did:x509:0:sha256:IzvPueXLRjJtLtIicMzV3icpiLQPemu8lBv6oRGjm-o::san:otherName:2.16.528.1.1007.99.2110-1-1111111-S-2222222-00.000-333333::subject:O:FauxCare", vc.Issuer.String())
 
-		expectedCredentialSubject := []interface{}([]interface{}{map[string]interface{}{
-			"id":                           "did:example:123",
-			"O":                            "FauxCare",
-			"otherName":                    "2.16.528.1.1007.99.2110-1-1111111-S-2222222-00.000-333333",
-			"permanentIdentifier.assigner": "2.16.528.1.1007.3.3",
-			"permanentIdentifier.value":    "2222222",
-		}})
+		expectedCredentialSubject := []interface{}{map[string]interface{}{
+			"id": "did:example:123",
+			"subject": map[string]interface{}{
+				"O": "FauxCare",
+			},
+			"san": map[string]interface{}{
+				"otherName":                    "2.16.528.1.1007.99.2110-1-1111111-S-2222222-00.000-333333",
+				"permanentIdentifier.assigner": "2.16.528.1.1007.3.3",
+				"permanentIdentifier.value":    "2222222",
+			},
+		}}
 
 		assert.Equal(t, expectedCredentialSubject, vc.CredentialSubject)
 

@@ -1,4 +1,4 @@
-package uzi_vc_validator
+package credential_verifier
 
 import (
 	"crypto/sha1"
@@ -10,22 +10,17 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jws"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/uzi-did-x509-issuer/ca_certs"
 	"github.com/nuts-foundation/uzi-did-x509-issuer/did_x509"
 	"github.com/nuts-foundation/uzi-did-x509-issuer/x509_cert"
 )
 
-type UraValidator interface {
-	Validate(jwtString []byte) bool
-}
-
-type UraValidatorImpl struct {
+type X509CredentialVerifier struct {
 	allowUziTestCa    bool
 	allowSelfSignedCa bool
 }
 
-func NewUraValidator(allowUziTestCa bool, allowSelfSignedCa bool) *UraValidatorImpl {
-	return &UraValidatorImpl{allowUziTestCa, allowSelfSignedCa}
+func NewUraValidator(allowUziTestCa bool, allowSelfSignedCa bool) *X509CredentialVerifier {
+	return &X509CredentialVerifier{allowUziTestCa, allowSelfSignedCa}
 }
 
 type JwtHeaderValues struct {
@@ -35,7 +30,7 @@ type JwtHeaderValues struct {
 	Algorithm              jwa.SignatureAlgorithm
 }
 
-func (u UraValidatorImpl) Validate(jwtString string) error {
+func (u X509CredentialVerifier) Validate(jwtString string) error {
 	credential, err := vc.ParseVerifiableCredential(jwtString)
 	if err != nil {
 		return err
@@ -151,7 +146,7 @@ func validateChain(signingCert *x509.Certificate, chain []*x509.Certificate, all
 			intermediates.AddCert(chain[i])
 		}
 	} else {
-		roots, intermediates, err = ca_certs.GetCertPools(allowUziTestCa)
+		roots, intermediates, err = getCertPools(allowUziTestCa)
 		if err != nil {
 			return err
 		}

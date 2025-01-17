@@ -1,4 +1,4 @@
-package ca_certs
+package credential_verifier
 
 import (
 	"testing"
@@ -32,7 +32,7 @@ func TestGetCertPools(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Call the function we want to test
-			root, intermediate, err := GetCertPools(tc.includeTest)
+			root, intermediate, err := getCertPools(tc.includeTest)
 
 			if tc.expectedError != nil {
 				// If we were expecting an error and we got one, then continue to next test case

@@ -7,6 +7,7 @@ import (
 	"encoding/asn1"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/uzi-did-x509-issuer/internal"
 	"slices"
 )
 
@@ -168,20 +169,11 @@ func SelectSanTypes(certificate *x509.Certificate, subjectAttributes ...SanTypeN
 	return selectedSubjectTypes, nil
 }
 
-func FindOtherNameValue(value []*OtherNameValue, policyType PolicyType, sanTypeName SanTypeName) (string, error) {
-	for _, v := range value {
-		if v != nil && v.PolicyType == policyType && v.Type == sanTypeName {
-			return v.Value, nil
-		}
-	}
-	return "", fmt.Errorf("failed to find value for policyType: %s and sanTypeName: %s", policyType, sanTypeName)
-}
-
 func findPermanentIdentifiers(cert *x509.Certificate) (string, asn1.ObjectIdentifier, error) {
 	value := ""
 	var assigner asn1.ObjectIdentifier
 	for _, extension := range cert.Extensions {
-		if extension.Id.Equal(SubjectAlternativeNameType) {
+		if extension.Id.Equal(internal.SubjectAlternativeNameType) {
 			err := forEachSAN(extension.Value, func(tag int, data []byte) error {
 				if tag != 0 {
 					return nil
@@ -191,7 +183,7 @@ func findPermanentIdentifiers(cert *x509.Certificate) (string, asn1.ObjectIdenti
 				if err != nil {
 					return fmt.Errorf("could not parse requested other SAN: %v", err)
 				}
-				if other.TypeID.Equal(PermanentIdentifierType) {
+				if other.TypeID.Equal(internal.PermanentIdentifierType) {
 					var x StingAndOid
 					_, err = asn1.Unmarshal(other.Value.Bytes, &x)
 					if err != nil {
@@ -216,7 +208,7 @@ func findPermanentIdentifiers(cert *x509.Certificate) (string, asn1.ObjectIdenti
 func findOtherNameValue(cert *x509.Certificate) (string, error) {
 	value := ""
 	for _, extension := range cert.Extensions {
-		if extension.Id.Equal(SubjectAlternativeNameType) {
+		if extension.Id.Equal(internal.SubjectAlternativeNameType) {
 			err := forEachSAN(extension.Value, func(tag int, data []byte) error {
 				if tag != 0 {
 					return nil
@@ -226,7 +218,7 @@ func findOtherNameValue(cert *x509.Certificate) (string, error) {
 				if err != nil {
 					return fmt.Errorf("could not parse requested other SAN: %v", err)
 				}
-				if other.TypeID.Equal(OtherNameType) {
+				if other.TypeID.Equal(internal.OtherNameType) {
 					_, err = asn1.Unmarshal(other.Value.Bytes, &value)
 					if err != nil {
 						return err
