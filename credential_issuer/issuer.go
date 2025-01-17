@@ -7,7 +7,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"errors"
-	"github.com/nuts-foundation/uzi-did-x509-issuer/internal"
+	"github.com/nuts-foundation/go-didx509-toolkit/internal"
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -19,12 +19,12 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/uzi-did-x509-issuer/did_x509"
-	"github.com/nuts-foundation/uzi-did-x509-issuer/x509_cert"
+	"github.com/nuts-foundation/go-didx509-toolkit/did_x509"
+	"github.com/nuts-foundation/go-didx509-toolkit/x509_cert"
 )
 
 // CredentialType holds the name of the X.509 credential type.
-const CredentialType = "X509Credential"
+var CredentialType = ssi.MustParseURI("X509Credential")
 
 // issueOptions contains values for options for issuing a UZI VC.
 type issueOptions struct {
@@ -34,9 +34,6 @@ type issueOptions struct {
 
 // Option is an interface for a function in the options pattern.
 type Option = func(*issueOptions)
-
-// X509Credential represents a JWT encoded X.509 credential.
-type X509Credential string
 
 var defaultIssueOptions = &issueOptions{
 	includePermanentIdentifier: false,
@@ -188,7 +185,7 @@ func buildCredential(issuerDID did.DID, expirationDate time.Time, otherNameValue
 	return &vc.VerifiableCredential{
 		Issuer:            issuerDID.URI(),
 		Context:           []ssi.URI{ssi.MustParseURI("https://www.w3.org/2018/credentials/v1")},
-		Type:              []ssi.URI{ssi.MustParseURI("VerifiableCredential"), ssi.MustParseURI(CredentialType)},
+		Type:              []ssi.URI{ssi.MustParseURI("VerifiableCredential"), CredentialType},
 		ID:                &id,
 		IssuanceDate:      iat,
 		ExpirationDate:    &expirationDate,

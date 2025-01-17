@@ -4,23 +4,22 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"github.com/nuts-foundation/uzi-did-x509-issuer/internal"
-	"github.com/nuts-foundation/uzi-did-x509-issuer/internal/test"
+	"github.com/nuts-foundation/go-didx509-toolkit/internal"
 	"testing"
 
 	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/uzi-did-x509-issuer/x509_cert"
+	"github.com/nuts-foundation/go-didx509-toolkit/x509_cert"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestBuildX509Credential(t *testing.T) {
-	allCerts, err := internal.ParseCertificatesFromPEM([]byte(test.TestCertificateChain))
+	allCerts, err := internal.ParseCertificatesFromPEM([]byte(internal.TestCertificateChain))
 	require.NoError(t, err)
 	chain, err := internal.ParseCertificateChain(allCerts)
 	require.NoError(t, err)
 
-	privKey, err := internal.ParseRSAPrivateKeyFromPEM([]byte(test.TestSigningKey))
+	privKey, err := internal.ParseRSAPrivateKeyFromPEM([]byte(internal.TestSigningKey))
 	require.NoError(t, err, "failed to read signing key")
 
 	type inFn = func(t *testing.T) ([]*x509.Certificate, *rsa.PrivateKey, string)
@@ -103,10 +102,10 @@ func TestBuildX509Credential(t *testing.T) {
 }
 
 func TestIssue(t *testing.T) {
-	validKey, err := internal.ParseRSAPrivateKeyFromPEM([]byte(test.TestSigningKey))
+	validKey, err := internal.ParseRSAPrivateKeyFromPEM([]byte(internal.TestSigningKey))
 	require.NoError(t, err, "failed to parse signing key")
 	t.Run("ok - happy path", func(t *testing.T) {
-		validChain, err := internal.ParseCertificatesFromPEM([]byte(test.TestCertificateChain))
+		validChain, err := internal.ParseCertificatesFromPEM([]byte(internal.TestCertificateChain))
 		require.NoError(t, err, "failed to parse chain")
 
 		vc, err := Issue(validChain, validKey, "did:example:123", SubjectAttributes(x509_cert.SubjectTypeCountry, x509_cert.SubjectTypeOrganization))
@@ -136,7 +135,7 @@ func TestIssue(t *testing.T) {
 	})
 
 	t.Run("ok - correct escaping of special characters", func(t *testing.T) {
-		validChain, err := internal.ParseCertificatesFromPEM([]byte(test.TestCertificateChain))
+		validChain, err := internal.ParseCertificatesFromPEM([]byte(internal.TestCertificateChain))
 		require.NoError(t, err)
 
 		validChain[0].Subject.Organization = []string{"FauxCare & Co"}

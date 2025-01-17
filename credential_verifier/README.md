@@ -1,1 +1,0 @@
-This feature needs to be reworked to work with any certificate chain, instead of just CIBG UZI.

@@ -3,14 +3,14 @@ package did_x509
 import (
 	"crypto/x509"
 	"encoding/base64"
-	"github.com/nuts-foundation/uzi-did-x509-issuer/internal/test"
+	"github.com/nuts-foundation/go-didx509-toolkit/internal"
 	"github.com/stretchr/testify/require"
 	"net/url"
 	"strings"
 	"testing"
 
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/uzi-did-x509-issuer/x509_cert"
+	"github.com/nuts-foundation/go-didx509-toolkit/x509_cert"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -48,7 +48,7 @@ func TestCreateDidSingle(t *testing.T) {
 	type args struct {
 		chain []*x509.Certificate
 	}
-	chain, _, rootCert, _, _, err := test.BuildSelfSignedCertChain("A_BIG_STRING", "A_PERMANENT_STRING")
+	chain, _, rootCert, _, _, err := internal.BuildSelfSignedCertChain("A_BIG_STRING", "A_PERMANENT_STRING")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -135,7 +135,7 @@ func TestCreateDidDouble(t *testing.T) {
 	type args struct {
 		chain []*x509.Certificate
 	}
-	chain, _, rootCert, _, _, err := test.BuildSelfSignedCertChain("A_BIG_STRING", "A_SMALL_STRING")
+	chain, _, rootCert, _, _, err := internal.BuildSelfSignedCertChain("A_BIG_STRING", "A_SMALL_STRING")
 	if err != nil {
 		t.Fatal(err)
 	}

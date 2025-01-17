@@ -1,4 +1,4 @@
-package test
+package internal
 
 import (
 	"crypto/rand"
@@ -7,7 +7,6 @@ import (
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/pem"
-	"github.com/nuts-foundation/uzi-did-x509-issuer/internal"
 	"math/big"
 	"time"
 
@@ -92,7 +91,7 @@ func BuildSelfSignedCertChain(identifier string, permanentIdentifierValue string
 		}
 	}
 
-	chainPems, err = internal.FixChainHeaders(chainPems)
+	chainPems, err = FixChainHeaders(chainPems)
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
@@ -160,7 +159,7 @@ func SigningCertTemplate(serialNumber *big.Int, identifier string, permanentIden
 			return nil, err
 		}
 		permOtherName := OtherName{
-			TypeID: internal.PermanentIdentifierType,
+			TypeID: PermanentIdentifierType,
 			Value: asn1.RawValue{
 				Class:      2,
 				Tag:        0,

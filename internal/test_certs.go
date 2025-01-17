@@ -1,4 +1,4 @@
-package test
+package internal
 
 const TestSigningKey = `
 -----BEGIN PRIVATE KEY-----

@@ -6,7 +6,7 @@ import (
 	"encoding/asn1"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/uzi-did-x509-issuer/internal"
+	"github.com/nuts-foundation/go-didx509-toolkit/internal"
 	"slices"
 )
 

@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/uzi-did-x509-issuer/x509_cert"
+	"github.com/nuts-foundation/go-didx509-toolkit/x509_cert"
 	"net/url"
 	"regexp"
 	"strings"

@@ -4,9 +4,9 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/alecthomas/kong"
-	"github.com/nuts-foundation/uzi-did-x509-issuer/credential_issuer"
-	"github.com/nuts-foundation/uzi-did-x509-issuer/internal"
-	"github.com/nuts-foundation/uzi-did-x509-issuer/x509_cert"
+	"github.com/nuts-foundation/go-didx509-toolkit/credential_issuer"
+	"github.com/nuts-foundation/go-didx509-toolkit/internal"
+	"github.com/nuts-foundation/go-didx509-toolkit/x509_cert"
 	"os"
 )
 

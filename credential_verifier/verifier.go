@@ -10,18 +10,11 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jws"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/uzi-did-x509-issuer/did_x509"
-	"github.com/nuts-foundation/uzi-did-x509-issuer/x509_cert"
+	"github.com/nuts-foundation/go-didx509-toolkit/credential_issuer"
+	"github.com/nuts-foundation/go-didx509-toolkit/did_x509"
+	"github.com/nuts-foundation/go-didx509-toolkit/internal"
+	"github.com/nuts-foundation/go-didx509-toolkit/x509_cert"
 )
-
-type X509CredentialVerifier struct {
-	allowUziTestCa    bool
-	allowSelfSignedCa bool
-}
-
-func NewUraValidator(allowUziTestCa bool, allowSelfSignedCa bool) *X509CredentialVerifier {
-	return &X509CredentialVerifier{allowUziTestCa, allowSelfSignedCa}
-}
 
 type JwtHeaderValues struct {
 	X509CertThumbprint     string
@@ -30,10 +23,19 @@ type JwtHeaderValues struct {
 	Algorithm              jwa.SignatureAlgorithm
 }
 
-func (u X509CredentialVerifier) Validate(jwtString string) error {
+// Verify parses the given Verifiable Credential and checks whether it's a valid X509Credential:
+// - It checks if the credential is of type X509Credential.
+// - It checks whether the credential issuer is a valid did:x509 DID.
+// - It checks whether the credential proof if valid.
+// - It verifies the did:x509 policies.
+// Note: it does NOT check whether the Verifiable Credential subject only contains fields from the did:x509 policies!
+func Verify(jwtString string) error {
 	credential, err := vc.ParseVerifiableCredential(jwtString)
 	if err != nil {
 		return err
+	}
+	if !credential.IsType(credential_issuer.CredentialType) {
+		return fmt.Errorf("credential is not of type %s", credential_issuer.CredentialType)
 	}
 	parseDid, err := did_x509.ParseDid(credential.Issuer.String())
 	if err != nil {
@@ -54,7 +56,7 @@ func (u X509CredentialVerifier) Validate(jwtString string) error {
 		return err
 	}
 
-	err = validateChain(signingCert, chainCertificates, u.allowUziTestCa, u.allowSelfSignedCa)
+	err = validateChain(signingCert, chainCertificates)
 	if err != nil {
 		return err
 	}
@@ -83,7 +85,6 @@ func (u X509CredentialVerifier) Validate(jwtString string) error {
 		if !found {
 			return fmt.Errorf("unable to locate a value for %s of policy %s", policy.Type, policy.PolicyType)
 		}
-
 	}
 	return nil
 }
@@ -133,30 +134,18 @@ func checkForOtherNamePolicy(otherNames []*x509_cert.OtherNameValue, policy *x50
 	return false, nil
 }
 
-// func validateChain(signingCert *x509.Certificate, certificates []*x509.Certificate, includeTest bool) error {
-func validateChain(signingCert *x509.Certificate, chain []*x509.Certificate, allowUziTestCa bool, allowSelfSignedCa bool) error {
-
-	roots := x509.NewCertPool()
-	intermediates := x509.NewCertPool()
-	var err error
-
-	if allowSelfSignedCa {
-		roots.AddCert(chain[len(chain)-1])
-		for i := 1; i < len(chain)-1; i++ {
-			intermediates.AddCert(chain[i])
-		}
-	} else {
-		roots, intermediates, err = getCertPools(allowUziTestCa)
-		if err != nil {
-			return err
-		}
-	}
-	err = validate(signingCert, roots, intermediates)
+func validateChain(signingCert *x509.Certificate, chain []*x509.Certificate) error {
+	parsedChain, err := internal.ParseCertificateChain(chain)
 	if err != nil {
-		err = fmt.Errorf("could not validate against the CA pool. %s", err.Error())
 		return err
 	}
-	return nil
+	roots := x509.NewCertPool()
+	roots.AddCert(parsedChain[len(parsedChain)-1])
+	intermediates := x509.NewCertPool()
+	for i := 1; i < len(parsedChain)-1; i++ {
+		intermediates.AddCert(parsedChain[i])
+	}
+	return validate(signingCert, roots, intermediates)
 }
 
 func validate(signingCert *x509.Certificate, roots *x509.CertPool, intermediates *x509.CertPool) error {

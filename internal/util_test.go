@@ -2,7 +2,6 @@ package internal
 
 import (
 	"crypto/x509"
-	"github.com/nuts-foundation/uzi-did-x509-issuer/internal/test"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
@@ -14,7 +13,7 @@ func TestParsePemBytes(t *testing.T) {
 		expectNumBlocks int
 		expectErr       bool
 	}{
-		{"ValidChain", []byte(test.TestCertificateChain), 4, false},
+		{"ValidChain", []byte(TestCertificateChain), 4, false},
 		{"InvalidChain", []byte("invalid pem"), 0, true},
 	}
 
@@ -33,7 +32,7 @@ func TestParsePemBytes(t *testing.T) {
 }
 
 func TestParseCertificateChain(t *testing.T) {
-	certs, err := ParseCertificatesFromPEM([]byte(test.TestCertificateChain))
+	certs, err := ParseCertificatesFromPEM([]byte(TestCertificateChain))
 	require.NoError(t, err)
 
 	tests := []struct {
