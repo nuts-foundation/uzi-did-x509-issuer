@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/alecthomas/kong"
 	"github.com/nuts-foundation/uzi-did-x509-issuer/credential_issuer"
+	"github.com/nuts-foundation/uzi-did-x509-issuer/internal"
 	"github.com/nuts-foundation/uzi-did-x509-issuer/x509_cert"
 	"os"
 )
@@ -65,22 +66,29 @@ func printLineAndFlush(jwt string) error {
 }
 
 func issueVc(vc VC) (string, error) {
-	chain, err := credential_issuer.NewValidCertificateChain(vc.CertificateFile)
+	certFileData, err := os.ReadFile(vc.CertificateFile)
+	if err != nil {
+		return "", fmt.Errorf("failed to read certificate file: %w", err)
+	}
+	certs, err := internal.ParseCertificatesFromPEM(certFileData)
+	if err != nil {
+		return "", err
+	}
+	chain, err := internal.ParseCertificateChain(certs)
 	if err != nil {
 		return "", err
 	}
 
-	key, err := credential_issuer.NewPrivateKey(vc.SigningKey)
+	keyFileData, err := os.ReadFile(vc.SigningKey)
+	if err != nil {
+		return "", fmt.Errorf("failed to read key file: %w", err)
+	}
+	key, err := internal.ParseRSAPrivateKeyFromPEM(keyFileData)
 	if err != nil {
 		return "", err
 	}
 
-	subject, err := credential_issuer.NewSubjectDID(vc.SubjectDID)
-	if err != nil {
-		return "", err
-	}
-
-	credential, err := credential_issuer.Issue(chain, key, subject, credential_issuer.SubjectAttributes(vc.SubjectAttributes...))
+	credential, err := credential_issuer.Issue(chain, key, vc.SubjectDID, credential_issuer.SubjectAttributes(vc.SubjectAttributes...))
 
 	if err != nil {
 		return "", err

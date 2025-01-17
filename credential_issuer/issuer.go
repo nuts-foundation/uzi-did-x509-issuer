@@ -6,11 +6,8 @@ import (
 	"crypto/sha1"
 	"crypto/x509"
 	"encoding/base64"
-	"encoding/pem"
 	"errors"
-	"fmt"
 	"github.com/nuts-foundation/uzi-did-x509-issuer/internal"
-	"os"
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -29,78 +26,6 @@ import (
 // CredentialType holds the name of the X.509 credential type.
 const CredentialType = "X509Credential"
 
-// filename represents a valid file name. The file must exist.
-type fileName string
-
-// nonEmptyBytes represents a non-empty byte slice.
-type nonEmptyBytes []byte
-
-// newFileName creates a new fileName from a string. It returns an error if the file does not exist.
-func newFileName(name string) (fileName, error) {
-	if _, err := os.Stat(name); err != nil {
-		return "", err
-	}
-
-	return fileName(name), nil
-}
-
-// readFile reads a file and returns its content as nonEmptyBytes. It returns an error if the file does not exist or is empty.
-func readFile(name fileName) (nonEmptyBytes, error) {
-	bytes, err := os.ReadFile(string(name))
-	if err != nil {
-		return nil, err
-	}
-	if len(bytes) == 0 {
-		return nil, errors.New("file is empty")
-	}
-	return bytes, nil
-}
-
-// pemBlocks represents a list of one or more PEM blocks.
-type pemBlocks []*pem.Block
-
-// parsePemBytes parses a nonEmptyBytes slice into a pemBlocks
-// it returns an error if the input does not contain any PEM blocks.
-func parsePemBytes(f nonEmptyBytes) (pemBlocks, error) {
-	blocks := make([]*pem.Block, 0)
-	for {
-		block, rest := pem.Decode(f)
-		if block == nil {
-			break
-		}
-		blocks = append(blocks, block)
-		f = rest
-	}
-
-	if len(blocks) == 0 {
-		return nil, errors.New("no PEM blocks found")
-	}
-
-	return blocks, nil
-}
-
-// parseCertificatesFromPemBlocks parses a list of PEM blocks into a list of x509.Certificate instances.
-// It returns an error if any of the blocks cannot be parsed into a certificate.
-func parseCertificatesFromPemBlocks(blocks pemBlocks) (certificateList, error) {
-	certs := make([]*x509.Certificate, 0)
-	for _, block := range blocks {
-		cert, err := x509.ParseCertificate(block.Bytes)
-		if err != nil {
-			return nil, err
-		}
-		certs = append(certs, cert)
-	}
-	return certs, nil
-}
-
-// certificateList represents a non empty slice of x509.Certificate instances.
-type certificateList []*x509.Certificate
-
-// validCertificateChain represents a valid certificate chain.
-type validCertificateChain certificateList
-type privateKey *rsa.PrivateKey
-type subjectDID string
-
 // issueOptions contains values for options for issuing a UZI VC.
 type issueOptions struct {
 	includePermanentIdentifier bool
@@ -118,94 +43,7 @@ var defaultIssueOptions = &issueOptions{
 	subjectAttributes:          []x509_cert.SubjectTypeName{},
 }
 
-// NewValidCertificateChain reads a file and returns a valid certificate chain.
-// It returns an error if the file does not exist or is empty or the certificates cannot be parsed or the chain is not valid.
-func NewValidCertificateChain(fileName string) (validCertificateChain, error) {
-	certFileName, err := newFileName(fileName)
-
-	if err != nil {
-		return nil, err
-	}
-
-	fileBytes, err := readFile(certFileName)
-	if err != nil {
-		return nil, err
-	}
-	pemBlocks, err := parsePemBytes(fileBytes)
-	if err != nil {
-		return nil, err
-	}
-
-	certs, err := parseCertificatesFromPemBlocks(pemBlocks)
-	if err != nil {
-		return nil, err
-	}
-
-	chain, err := newCertificateChain(certs)
-	if err != nil {
-		return nil, err
-	}
-
-	return chain, nil
-}
-
-// NewPrivateKey reads a file and returns an RSA private key.
-// It returns an error if the file does not exist or is empty or the key cannot be parsed.
-func NewPrivateKey(fileName string) (privateKey, error) {
-	keyFileName, err := newFileName(fileName)
-	if err != nil {
-		return nil, err
-	}
-
-	keyFileBytes, err := readFile(keyFileName)
-	if err != nil {
-		return nil, err
-	}
-
-	keyBlocks, err := parsePemBytes(keyFileBytes)
-	if err != nil {
-		return nil, err
-	}
-
-	key, err := newRSAPrivateKey(keyBlocks)
-	if err != nil {
-		return nil, err
-	}
-
-	return key, nil
-}
-
-func NewSubjectDID(didStr string) (subjectDID, error) {
-	subject, err := did.ParseDID(didStr)
-	if err != nil {
-		return "", err
-	}
-	return subjectDID(subject.String()), nil
-}
-
-// newRSAPrivateKey parses a DER-encoded private key into an *rsa.PrivateKey.
-// It returns an error if the key is not in PKCS8 format or not an RSA key.
-func newRSAPrivateKey(pemBlocks pemBlocks) (privateKey, error) {
-	if len(pemBlocks) != 1 || pemBlocks[0].Type != "PRIVATE KEY" {
-		return nil, errors.New("expected exactly one private key block")
-	}
-	block := pemBlocks[0]
-
-	key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
-	if err != nil {
-		key, err = x509.ParsePKCS1PrivateKey(block.Bytes)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if _, ok := key.(*rsa.PrivateKey); !ok {
-		return nil, fmt.Errorf("key is not RSA")
-	}
-	return key.(*rsa.PrivateKey), err
-}
-
-func Issue(chain validCertificateChain, key privateKey, subject subjectDID, optionFns ...Option) (*vc.VerifiableCredential, error) {
+func Issue(chain []*x509.Certificate, key *rsa.PrivateKey, subject string, optionFns ...Option) (*vc.VerifiableCredential, error) {
 	options := defaultIssueOptions
 	for _, fn := range optionFns {
 		fn(options)
@@ -273,7 +111,7 @@ func Issue(chain validCertificateChain, key privateKey, subject subjectDID, opti
 			return "", err
 		}
 
-		sign, err := jwt.Sign(token, jwt.WithKey(jwa.PS256, rsa.PrivateKey(*key), jws.WithProtectedHeaders(hdrs)))
+		sign, err := jwt.Sign(token, jwt.WithKey(jwa.PS256, *key, jws.WithProtectedHeaders(hdrs)))
 		return string(sign), err
 	})
 }
@@ -299,47 +137,6 @@ func marshalChain(certificates ...*x509.Certificate) (*cert.Chain, error) {
 	return headers, err
 }
 
-// newCertificateChain constructs a valid certificate chain from a given list of certificates and a starting signing certificate.
-// It recursively finds parent certificates for non-root CAs and appends them to the chain.
-// It assumes the list might not be in order.
-// The returning chain contains the signing cert at the start and the root cert at the end.
-func newCertificateChain(certs certificateList) (validCertificateChain, error) {
-	var signingCert *x509.Certificate
-	for _, c := range certs {
-		if c != nil && !c.IsCA {
-			signingCert = c
-			break
-		}
-	}
-	if signingCert == nil {
-		return nil, errors.New("failed to find signing certificate")
-	}
-
-	var chain []*x509.Certificate
-	chain = append(chain, signingCert)
-
-	certToCheck := signingCert
-	for !x509_cert.IsRootCa(certToCheck) {
-		found := false
-		for _, c := range certs {
-			if c == nil || c.Equal(signingCert) {
-				continue
-			}
-			err := certToCheck.CheckSignatureFrom(c)
-			if err == nil {
-				chain = append(chain, c)
-				certToCheck = c
-				found = true
-				break
-			}
-		}
-		if !found {
-			return nil, errors.New("failed to find path from signingCert to root")
-		}
-	}
-	return chain, nil
-}
-
 // convertClaims converts a map of claims to a JWT token.
 func convertClaims(claims map[string]interface{}) (jwt.Token, error) {
 	t := jwt.New()
@@ -363,7 +160,7 @@ func convertHeaders(headers map[string]interface{}) (jws.Headers, error) {
 	return hdr, nil
 }
 
-func buildCredential(issuerDID did.DID, expirationDate time.Time, otherNameValues []*x509_cert.OtherNameValue, subjectTypes []*x509_cert.SubjectValue, subjectDID subjectDID) (*vc.VerifiableCredential, error) {
+func buildCredential(issuerDID did.DID, expirationDate time.Time, otherNameValues []*x509_cert.OtherNameValue, subjectTypes []*x509_cert.SubjectValue, subjectDID string) (*vc.VerifiableCredential, error) {
 	iat := time.Now()
 	subject := map[string]interface{}{
 		"id": subjectDID,

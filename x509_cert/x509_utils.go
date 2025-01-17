@@ -1,7 +1,6 @@
 package x509_cert
 
 import (
-	"bytes"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
@@ -277,8 +276,4 @@ func processSANSequence(rest []byte, callback func(tag int, data []byte) error) 
 		}
 	}
 	return nil
-}
-
-func IsRootCa(signingCert *x509.Certificate) bool {
-	return signingCert.IsCA && bytes.Equal(signingCert.RawIssuer, signingCert.RawSubject)
 }

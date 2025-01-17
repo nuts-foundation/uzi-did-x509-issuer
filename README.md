@@ -53,6 +53,10 @@ TODO
   ./issuer vc cert.pem key.key did:web:example.com:example
   ```
 
+## Limitations
+
+Only RSA keys are supported at the moment.
+
 ## Project UZI CA and Intermediate CA files
 
 This project downloads the relevant CA certs from:

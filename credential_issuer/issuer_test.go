@@ -4,7 +4,8 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"os"
+	"github.com/nuts-foundation/uzi-did-x509-issuer/internal"
+	"github.com/nuts-foundation/uzi-did-x509-issuer/internal/test"
 	"testing"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -14,23 +15,19 @@ import (
 )
 
 func TestBuildX509Credential(t *testing.T) {
+	allCerts, err := internal.ParseCertificatesFromPEM([]byte(test.TestCertificateChain))
+	require.NoError(t, err)
+	chain, err := internal.ParseCertificateChain(allCerts)
+	require.NoError(t, err)
 
-	chainBytes, err := os.ReadFile("testdata/valid_chain.pem")
-	require.NoError(t, err, "failed to read chain")
+	privKey, err := internal.ParseRSAPrivateKeyFromPEM([]byte(test.TestSigningKey))
+	require.NoError(t, err, "failed to read signing key")
 
 	type inFn = func(t *testing.T) ([]*x509.Certificate, *rsa.PrivateKey, string)
 
 	defaultIn := func(t *testing.T) ([]*x509.Certificate, *rsa.PrivateKey, string) {
-		pemBlocks, err := parsePemBytes(chainBytes)
-		require.NoError(t, err, "failed to parse pem blocks")
 
-		certs, err := parseCertificatesFromPemBlocks(pemBlocks)
-		require.NoError(t, err, "failed to parse certificates from pem blocks")
-
-		privKey, err := NewPrivateKey("testdata/signing_key.pem")
-		require.NoError(t, err, "failed to read signing key")
-
-		return certs, privKey, "did:example:123"
+		return chain, privKey, "did:example:123"
 	}
 
 	tests := []struct {
@@ -93,7 +90,7 @@ func TestBuildX509Credential(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			certificates, signingKey, subject := tt.in(t)
-			_, err := Issue(certificates, signingKey, subjectDID(subject))
+			_, err := Issue(certificates, signingKey, subject)
 			if err != nil {
 				if err.Error() != tt.errorText {
 					t.Errorf("TestBuildX509Credential() error = '%v', wantErr '%v'", err.Error(), tt.errorText)
@@ -105,70 +102,13 @@ func TestBuildX509Credential(t *testing.T) {
 	}
 }
 
-func TestNewFileName(t *testing.T) {
-	// Create a temporary file for testing
-	tmpFile, err := os.CreateTemp("", "testfile")
-	if err != nil {
-		t.Fatalf("Failed to create temp file: %v", err)
-	}
-	defer os.Remove(tmpFile.Name())
-
-	tests := []struct {
-		name      string
-		fileName  string
-		expectErr bool
-	}{
-		{"ValidFile", tmpFile.Name(), false},
-		{"InvalidFile", "nonexistentfile", true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := newFileName(tt.fileName)
-			if (err != nil) != tt.expectErr {
-				t.Errorf("newFileName() error = %v, expectErr %v", err, tt.expectErr)
-			}
-		})
-	}
-}
-
-func TestReadFile(t *testing.T) {
-	// Create a temporary file
-	tmpfile, err := os.CreateTemp("", "example")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Remove(tmpfile.Name()) // clean up
-
-	content := []byte("Hello, World!")
-	if _, err := tmpfile.Write(content); err != nil {
-		t.Fatal(err)
-	}
-	if err := tmpfile.Close(); err != nil {
-		t.Fatal(err)
-	}
-
-	// Call readFile function
-	fileName := fileName(tmpfile.Name())
-	readContent, err := readFile(fileName)
-	if err != nil {
-		t.Fatalf("readFile() error = %v", err)
-	}
-
-	// Assert the content matches
-	if string(readContent) != string(content) {
-		t.Errorf("readFile() = %v, want %v", string(readContent), string(content))
-	}
-}
-
 func TestIssue(t *testing.T) {
-	validChain, err := NewValidCertificateChain("testdata/valid_chain.pem")
-	require.NoError(t, err, "failed to read chain")
-
-	validKey, err := NewPrivateKey("testdata/signing_key.pem")
-	require.NoError(t, err, "failed to read signing key")
-
+	validKey, err := internal.ParseRSAPrivateKeyFromPEM([]byte(test.TestSigningKey))
+	require.NoError(t, err, "failed to parse signing key")
 	t.Run("ok - happy path", func(t *testing.T) {
+		validChain, err := internal.ParseCertificatesFromPEM([]byte(test.TestCertificateChain))
+		require.NoError(t, err, "failed to parse chain")
+
 		vc, err := Issue(validChain, validKey, "did:example:123", SubjectAttributes(x509_cert.SubjectTypeCountry, x509_cert.SubjectTypeOrganization))
 
 		require.NoError(t, err, "failed to issue verifiable credential")
@@ -192,13 +132,12 @@ func TestIssue(t *testing.T) {
 		}}
 
 		assert.Equal(t, expectedCredentialSubject, vc.CredentialSubject)
-
 		assert.Equal(t, validChain[0].NotAfter, *vc.ExpirationDate, "expiration date of VC must match signing certificate")
 	})
 
 	t.Run("ok - correct escaping of special characters", func(t *testing.T) {
-		validChain, err := NewValidCertificateChain("testdata/valid_chain.pem")
-		require.NoError(t, err, "failed to read chain")
+		validChain, err := internal.ParseCertificatesFromPEM([]byte(test.TestCertificateChain))
+		require.NoError(t, err)
 
 		validChain[0].Subject.Organization = []string{"FauxCare & Co"}
 
@@ -206,140 +145,4 @@ func TestIssue(t *testing.T) {
 
 		assert.Equal(t, "did:x509:0:sha256:IzvPueXLRjJtLtIicMzV3icpiLQPemu8lBv6oRGjm-o::san:otherName:2.16.528.1.1007.99.2110-1-1111111-S-2222222-00.000-333333::subject:O:FauxCare%20%26%20Co", vc.Issuer.String())
 	})
-
-}
-
-func TestParsePemBytes(t *testing.T) {
-	chainBytes, err := os.ReadFile("testdata/valid_chain.pem")
-	require.NoError(t, err, "failed to read chain")
-
-	tests := []struct {
-		name            string
-		pemBytes        []byte
-		expectNumBlocks int
-		expectErr       bool
-	}{
-		{"ValidChain", chainBytes, 4, false},
-		{"InvalidChain", []byte("invalid pem"), 0, true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			blocks, err := parsePemBytes(tt.pemBytes)
-			if (err != nil) != tt.expectErr {
-				t.Errorf("parsePemBytes() error = %v, expectErr %v", err, tt.expectErr)
-			}
-
-			if len(blocks) != tt.expectNumBlocks {
-				t.Errorf("parsePemBytes() = %v, want %v", len(blocks), tt.expectNumBlocks)
-			}
-		})
-	}
-}
-
-func TestNewCertificateChain(t *testing.T) {
-	chainBytes, err := os.ReadFile("testdata/valid_chain.pem")
-	require.NoError(t, err, "failed to read chain")
-
-	pemBlocks, err := parsePemBytes(chainBytes)
-	require.NoError(t, err, "failed to parse pem blocks")
-
-	certs, err := parseCertificatesFromPemBlocks(pemBlocks)
-	require.NoError(t, err, "failed to parse certificates from pem blocks")
-
-	tests := []struct {
-		name      string
-		errorText string
-		in        func(certs []*x509.Certificate) []*x509.Certificate
-		out       func(certs []*x509.Certificate) []*x509.Certificate
-	}{
-		{
-			name: "ok - valid cert input",
-			in: func(certs []*x509.Certificate) []*x509.Certificate {
-				return certs
-			},
-			out: func(certs []*x509.Certificate) []*x509.Certificate {
-				return certs
-			},
-			errorText: "",
-		},
-		{
-			name: "ok - it handles out of order certificates",
-			in: func(certs []*x509.Certificate) []*x509.Certificate {
-				certs = []*x509.Certificate{certs[2], certs[0], certs[3], certs[1]}
-				return certs
-			},
-			out: func(certs []*x509.Certificate) []*x509.Certificate {
-				return certs
-			},
-			errorText: "",
-		},
-		{
-			name: "nok - missing signing certificate",
-			in: func(certs []*x509.Certificate) []*x509.Certificate {
-				certs = certs[1:]
-				return certs
-			},
-			out: func(certs []*x509.Certificate) []*x509.Certificate {
-				return nil
-			},
-			errorText: "failed to find signing certificate",
-		},
-		{
-			name: "nok - missing root CA certificate",
-			in: func(certs []*x509.Certificate) []*x509.Certificate {
-				certs = certs[:3]
-				return certs
-			},
-			out: func(certs []*x509.Certificate) []*x509.Certificate {
-				return nil
-			},
-			errorText: "failed to find path from signingCert to root",
-		},
-		{
-			name: "nok - missing first intermediate CA certificate",
-			in: func(certs []*x509.Certificate) []*x509.Certificate {
-				certs = []*x509.Certificate{certs[0], certs[2], certs[3]}
-				return certs
-			},
-			out: func(certs []*x509.Certificate) []*x509.Certificate {
-				return nil
-			},
-			errorText: "failed to find path from signingCert to root",
-		},
-		{
-			name: "nok - missing second intermediate CA certificate",
-			in: func(certs []*x509.Certificate) []*x509.Certificate {
-				certs = []*x509.Certificate{certs[0], certs[1], certs[3]}
-				return certs
-			},
-			out: func(certs []*x509.Certificate) []*x509.Certificate {
-				return nil
-			},
-			errorText: "failed to find path from signingCert to root",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			inputCerts := tt.in(certs)
-			expectedCerts := tt.out(certs)
-			resultCerts, err := newCertificateChain(inputCerts)
-			if err != nil {
-				if err.Error() != tt.errorText {
-					t.Errorf("BuildCertificateChain() error = '%v', wantErr '%v'", err.Error(), tt.errorText)
-				}
-			} else if err == nil && tt.errorText != "" {
-				t.Errorf("BuildCertificateChain() unexpected success, want error")
-			}
-			if len(resultCerts) != len(expectedCerts) {
-				t.Errorf("BuildCertificateChain() expected %d certificates, got %d", len(expectedCerts), len(resultCerts))
-				return
-			}
-			for i := range resultCerts {
-				if !resultCerts[i].Equal(expectedCerts[i]) {
-					t.Errorf("BuildCertificateChain() at index %d expected %v, got %v", i, expectedCerts[i], resultCerts[i])
-				}
-			}
-		})
-	}
 }
