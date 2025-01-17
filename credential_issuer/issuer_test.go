@@ -39,14 +39,6 @@ func TestBuildX509Credential(t *testing.T) {
 			in:        defaultIn,
 			errorText: "",
 		},
-		// {
-		// 	name: "nok - empty chain",
-		// 	in: func(t *testing.T) ([]*x509.Certificate, *rsa.PrivateKey, string) {
-		// 		_, privKey, didStr := defaultIn(t)
-		// 		return []*x509.Certificate{}, privKey, didStr
-		// 	},
-		// 	errorText: "empty certificate chain",
-		// },
 		{
 			name: "nok - empty serial number",
 			in: func(*testing.T) ([]*x509.Certificate, *rsa.PrivateKey, string) {
@@ -76,14 +68,6 @@ func TestBuildX509Credential(t *testing.T) {
 			},
 			errorText: "no values found in the SAN attributes, please check if the certificate is an UZI Server Certificate",
 		},
-		// {
-		// 	name: "nok - nil signing key",
-		// 	in: func(t *testing.T) ([]*x509.Certificate, *rsa.PrivateKey, string) {
-		// 		certs, _, didStr := defaultIn(t)
-		// 		return certs, nil, didStr
-		// 	},
-		// 	errorText: "signing key is nil",
-		// },
 	}
 
 	for _, tt := range tests {
