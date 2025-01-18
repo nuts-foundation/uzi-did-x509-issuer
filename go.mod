@@ -5,7 +5,7 @@ go 1.23.1
 require (
 	github.com/alecthomas/kong v1.4.0
 	github.com/google/uuid v1.6.0
-	github.com/lestrrat-go/jwx/v2 v2.1.2
+	github.com/lestrrat-go/jwx/v2 v2.1.3
 	github.com/nuts-foundation/go-did v0.15.0
 	github.com/stretchr/testify v1.9.0
 )
