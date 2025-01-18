@@ -1,42 +1,30 @@
-package x509_cert
+package internal
 
 import (
-	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/pem"
-	"fmt"
 	"math/big"
 	"time"
 
 	"github.com/lestrrat-go/jwx/v2/cert"
 )
 
-const (
-	CertificateBlockType = "CERTIFICATE"
-	RSAPrivKeyBlockType  = "PRIVATE KEY"
-)
+var permanentIdentifierAssigner = asn1.ObjectIdentifier{2, 16, 528, 1, 1007, 3, 3}
+var subjectAlternativeNameType = asn1.ObjectIdentifier{2, 5, 29, 17}
+var otherNameType = asn1.ObjectIdentifier{2, 5, 5, 5}
 
-func EncodeRSAPrivateKey(key *rsa.PrivateKey) ([]byte, error) {
-	b := bytes.Buffer{}
-	err := pem.Encode(&b, &pem.Block{Type: RSAPrivKeyBlockType, Bytes: x509.MarshalPKCS1PrivateKey(key)})
-	if err != nil {
-		return []byte{}, err
-	}
-	return b.Bytes(), nil
+type otherName struct {
+	TypeID asn1.ObjectIdentifier
+	Value  asn1.RawValue `asn1:"tag:0,explicit"`
 }
 
-func EncodeCertificates(certs ...*x509.Certificate) ([]byte, error) {
-	b := bytes.Buffer{}
-	for _, c := range certs {
-		if err := pem.Encode(&b, &pem.Block{Type: CertificateBlockType, Bytes: c.Raw}); err != nil {
-			return []byte{}, err
-		}
-	}
-	return b.Bytes(), nil
+type stringAndOid struct {
+	Value    string
+	Assigner asn1.ObjectIdentifier
 }
 
 // BuildSelfSignedCertChain generates a certificate chain, including root, intermediate, and signing certificates.
@@ -45,11 +33,11 @@ func BuildSelfSignedCertChain(identifier string, permanentIdentifierValue string
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
-	rootCertTmpl, err := CertTemplate(nil, "Root CA")
+	rootCertTmpl, err := certTemplate(nil, "Root CA")
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
-	rootCert, rootPem, err := CreateCert(rootCertTmpl, rootCertTmpl, &rootKey.PublicKey, rootKey)
+	rootCert, rootPem, err := createCert(rootCertTmpl, rootCertTmpl, &rootKey.PublicKey, rootKey)
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
@@ -58,11 +46,11 @@ func BuildSelfSignedCertChain(identifier string, permanentIdentifierValue string
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
-	intermediateL1Tmpl, err := CertTemplate(nil, "Intermediate CA Level 1")
+	intermediateL1Tmpl, err := certTemplate(nil, "Intermediate CA Level 1")
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
-	intermediateL1Cert, intermediateL1Pem, err := CreateCert(intermediateL1Tmpl, rootCertTmpl, &intermediateL1Key.PublicKey, rootKey)
+	intermediateL1Cert, intermediateL1Pem, err := createCert(intermediateL1Tmpl, rootCertTmpl, &intermediateL1Key.PublicKey, rootKey)
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
@@ -71,11 +59,11 @@ func BuildSelfSignedCertChain(identifier string, permanentIdentifierValue string
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
-	intermediateL2Tmpl, err := CertTemplate(nil, "Intermediate CA Level 2")
+	intermediateL2Tmpl, err := certTemplate(nil, "Intermediate CA Level 2")
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
-	intermediateL2Cert, intermediateL2Pem, err := CreateCert(intermediateL2Tmpl, intermediateL1Cert, &intermediateL2Key.PublicKey, intermediateL1Key)
+	intermediateL2Cert, intermediateL2Pem, err := createCert(intermediateL2Tmpl, intermediateL1Cert, &intermediateL2Key.PublicKey, intermediateL1Key)
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
@@ -84,11 +72,11 @@ func BuildSelfSignedCertChain(identifier string, permanentIdentifierValue string
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
-	signingTmpl, err := SigningCertTemplate(nil, identifier, permanentIdentifierValue)
+	signingTmpl, err := signingCertTemplate(nil, identifier, permanentIdentifierValue)
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
-	signingCert, signingPEM, err := CreateCert(signingTmpl, intermediateL2Cert, &signingKey.PublicKey, intermediateL2Key)
+	signingCert, signingPEM, err := createCert(signingTmpl, intermediateL2Cert, &signingKey.PublicKey, intermediateL2Key)
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
@@ -110,9 +98,9 @@ func BuildSelfSignedCertChain(identifier string, permanentIdentifierValue string
 	return chain, chainPems, rootCert, signingKey, signingCert, nil
 }
 
-// CertTemplate generates a template for a x509 certificate with a given serial number. If no serial number is provided, a random one is generated.
+// certTemplate generates a template for a x509 certificate with a given serial number. If no serial number is provided, a random one is generated.
 // The certificate is valid for one month and uses SHA256 with RSA for the signature algorithm.
-func CertTemplate(serialNumber *big.Int, organization string) (*x509.Certificate, error) {
+func certTemplate(serialNumber *big.Int, organization string) (*x509.Certificate, error) {
 	// generate a random serial number (a real cert authority would have some logic behind this)
 	if serialNumber == nil {
 		serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 8)
@@ -133,8 +121,8 @@ func CertTemplate(serialNumber *big.Int, organization string) (*x509.Certificate
 	return &tmpl, nil
 }
 
-// SigningCertTemplate creates a x509.Certificate template for a signing certificate with an optional serial number.
-func SigningCertTemplate(serialNumber *big.Int, identifier string, permanentIdentifierValue string) (*x509.Certificate, error) {
+// signingCertTemplate creates a x509.Certificate template for a signing certificate with an optional serial number.
+func signingCertTemplate(serialNumber *big.Int, identifier string, permanentIdentifierValue string) (*x509.Certificate, error) {
 	// generate a random serial number (a real cert authority would have some logic behind this)
 	if serialNumber == nil {
 		serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 8)
@@ -144,8 +132,8 @@ func SigningCertTemplate(serialNumber *big.Int, identifier string, permanentIden
 	if err != nil {
 		return nil, err
 	}
-	otherName := OtherName{
-		TypeID: OtherNameType,
+	identifierOtherName := otherName{
+		TypeID: otherNameType,
 		Value: asn1.RawValue{
 			Class:      2,
 			Tag:        0,
@@ -154,7 +142,7 @@ func SigningCertTemplate(serialNumber *big.Int, identifier string, permanentIden
 		},
 	}
 
-	raw, err = toRawValue(otherName, "tag:0")
+	raw, err = toRawValue(identifierOtherName, "tag:0")
 	if err != nil {
 		return nil, err
 	}
@@ -162,15 +150,15 @@ func SigningCertTemplate(serialNumber *big.Int, identifier string, permanentIden
 	list = append(list, *raw)
 
 	if permanentIdentifierValue != "" {
-		permId := StingAndOid{
+		permId := stringAndOid{
 			Value:    permanentIdentifierValue,
-			Assigner: UraAssigner,
+			Assigner: permanentIdentifierAssigner,
 		}
 		raw, err = toRawValue(permId, "seq")
 		if err != nil {
 			return nil, err
 		}
-		permOtherName := OtherName{
+		permOtherName := otherName{
 			TypeID: PermanentIdentifierType,
 			Value: asn1.RawValue{
 				Class:      2,
@@ -185,12 +173,10 @@ func SigningCertTemplate(serialNumber *big.Int, identifier string, permanentIden
 		}
 		list = append(list, *raw)
 	}
-	//fmt.Println("OFF")
 	marshal, err := asn1.Marshal(list)
 	if err != nil {
 		return nil, err
 	}
-	//err = DebugUnmarshall(marshal, 0)
 
 	tmpl := x509.Certificate{
 		SerialNumber:          serialNumber,
@@ -202,18 +188,12 @@ func SigningCertTemplate(serialNumber *big.Int, identifier string, permanentIden
 		BasicConstraintsValid: true,
 		ExtraExtensions: []pkix.Extension{
 			{
-				Id:       SubjectAlternativeNameType,
+				Id:       subjectAlternativeNameType,
 				Critical: false,
 				Value:    marshal,
 			},
 		},
 	}
-	uzi, _, _, err := ParseUraFromOtherNameValue(identifier)
-	if err != nil {
-		// Crate an incorrect uzi in order to test invalid UZI numbers
-		uzi = "9876543212"
-	}
-	tmpl.Subject.SerialNumber = uzi
 	tmpl.KeyUsage = x509.KeyUsageDigitalSignature
 	tmpl.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
 	return &tmpl, nil
@@ -233,10 +213,9 @@ func toRawValue(identifier any, tag string) (*asn1.RawValue, error) {
 	return &val, nil
 }
 
-// CreateCert generates a new x509 certificate using the provided template and parent certificates, public and private keys.
+// createCert generates a new x509 certificate using the provided template and parent certificates, public and private keys.
 // It returns the generated certificate, its PEM-encoded version, and any error encountered during the process.
-func CreateCert(template, parent *x509.Certificate, pub interface{}, parentPriv interface{}) (cert *x509.Certificate, certPEM []byte, err error) {
-
+func createCert(template, parent *x509.Certificate, pub interface{}, parentPriv interface{}) (cert *x509.Certificate, certPEM []byte, err error) {
 	certDER, err := x509.CreateCertificate(rand.Reader, template, parent, pub, parentPriv)
 	if err != nil {
 		return nil, nil, err
@@ -250,57 +229,4 @@ func CreateCert(template, parent *x509.Certificate, pub interface{}, parentPriv 
 	b := pem.Block{Type: "CERTIFICATE", Bytes: certDER}
 	certPEM = pem.EncodeToMemory(&b)
 	return cert, certPEM, err
-}
-
-// DebugUnmarshall recursively unmarshalls ASN.1 encoded data and prints the structure with parsed values.
-// Keep this method for debug purposes in the future.
-func DebugUnmarshall(data []byte, depth int) error {
-	for len(data) > 0 {
-		var x asn1.RawValue
-		tail, err := asn1.Unmarshal(data, &x)
-		if err != nil {
-			return err
-		}
-		prefix := ""
-		for i := 0; i < depth; i++ {
-			prefix += "\t"
-		}
-		fmt.Printf("%sUnmarshalled: compound: %t, tag: %d, class: %d", prefix, x.IsCompound, x.Tag, x.Class)
-
-		if x.Bytes != nil {
-			if x.IsCompound || x.Tag == 0 {
-				fmt.Println()
-				err := DebugUnmarshall(x.Bytes, depth+1)
-				if err != nil {
-					return err
-				}
-			} else {
-				switch x.Tag {
-				case asn1.TagBoolean:
-					fmt.Printf(", value boolean: %v", x.Bytes)
-				case asn1.TagOID:
-					fmt.Printf(", value: OID: %v", x.Bytes)
-				case asn1.TagInteger:
-					fmt.Printf(", value: integer: %v", x.Bytes)
-				case asn1.TagUTF8String:
-					fmt.Printf(", value: bitstring: %v", x.Bytes)
-				case asn1.TagBitString:
-					fmt.Printf(", value: bitstring: %v", x.Bytes)
-				case asn1.TagOctetString:
-					fmt.Printf(", value: octetstring: %v", x.Bytes)
-				case asn1.TagIA5String:
-					fmt.Printf(", value: TagIA5String: %v", x.Bytes)
-				case asn1.TagNull:
-					fmt.Printf(", value: null")
-				default:
-					return fmt.Errorf("unknown tag: %d", x.Tag)
-
-				}
-				fmt.Println()
-			}
-		}
-		data = tail
-	}
-
-	return nil
 }

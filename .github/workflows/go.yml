@@ -35,4 +35,4 @@ jobs:
       with:
         coverageLocations: |
           ${{github.workspace}}/c.out:gocov
-        prefix: github.com/nuts-foundation/uzi-did-x509-issuer
+        prefix: github.com/nuts-foundation/go-didx509-toolkit

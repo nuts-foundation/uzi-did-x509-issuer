@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/uzi-did-x509-issuer/x509_cert"
+	"github.com/nuts-foundation/go-didx509-toolkit/x509_cert"
 	"net/url"
 	"regexp"
 	"strings"
@@ -47,14 +47,14 @@ func CreateDid(signingCert, caCert *x509.Certificate, subjectAttributes []x509_c
 	if err != nil {
 		return nil, err
 	}
-	policies := CreateOtherNamePolicies(otherNames)
+	policies := createOtherNamePolicies(otherNames)
 
 	subjectTypes, err := x509_cert.SelectSubjectTypes(signingCert, subjectAttributes...)
 	if err != nil {
 		return nil, err
 	}
 
-	policies = append(policies, CreateSubjectPolicies(subjectTypes)...)
+	policies = append(policies, createSubjectPolicies(subjectTypes)...)
 
 	formattedDid, err := FormatDid(caCert, policies...)
 	return formattedDid, err
@@ -127,9 +127,9 @@ func ParseDid(didString string) (*X509Did, error) {
 	return &x509Did, nil
 }
 
-// CreateOtherNamePolicies constructs a policy string using the provided URA, fixed string "san", and "permanentIdentifier".
+// createOtherNamePolicies constructs a policy string using the provided URA, fixed string "san", and "permanentIdentifier".
 // It joins these components with colons and returns the resulting policy string.
-func CreateOtherNamePolicies(otherNames []*x509_cert.OtherNameValue) []string {
+func createOtherNamePolicies(otherNames []*x509_cert.OtherNameValue) []string {
 	var policies []string
 	for _, otherName := range otherNames {
 		value := PercentEncode(otherName.Value)
@@ -140,7 +140,7 @@ func CreateOtherNamePolicies(otherNames []*x509_cert.OtherNameValue) []string {
 	return policies
 }
 
-func CreateSubjectPolicies(subjectValues []*x509_cert.SubjectValue) []string {
+func createSubjectPolicies(subjectValues []*x509_cert.SubjectValue) []string {
 	var policies []string
 	for _, subjectValue := range subjectValues {
 		value := PercentEncode(subjectValue.Value)
@@ -149,14 +149,4 @@ func CreateSubjectPolicies(subjectValues []*x509_cert.SubjectValue) []string {
 		policies = append(policies, policy)
 	}
 	return policies
-}
-
-// FindRootCertificate traverses a chain of x509 certificates and returns the first certificate that is a CA.
-func FindRootCertificate(chain []*x509.Certificate) (*x509.Certificate, error) {
-	for _, cert := range chain {
-		if x509_cert.IsRootCa(cert) {
-			return cert, nil
-		}
-	}
-	return nil, fmt.Errorf("cannot find root certificate")
 }

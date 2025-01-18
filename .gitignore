@@ -1,6 +1,6 @@
 /*.pem
 !ca.pem
-uzi-did-x509-issuer
+go-didx509-toolkit
 c.out
 .idea
 ./issuer

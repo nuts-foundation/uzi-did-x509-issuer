@@ -2,12 +2,16 @@ package x509_cert
 
 import (
 	"crypto/x509"
+	"encoding/asn1"
+	"github.com/nuts-foundation/go-didx509-toolkit/internal"
 	"reflect"
 	"testing"
 )
 
+var permanentIdentifierAssigner = asn1.ObjectIdentifier{2, 16, 528, 1, 1007, 3, 3}
+
 func TestFindOtherName(t *testing.T) {
-	chain, _, _, _, _, err := BuildSelfSignedCertChain("2.16.528.1.1007.99.2110-1-900030787-S-90000380-00.000-11223344", "90000380")
+	chain, _, _, _, _, err := internal.BuildSelfSignedCertChain("2.16.528.1.1007.99.2110-1-900030787-S-90000380-00.000-11223344", "90000380")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,7 +38,7 @@ func TestFindOtherName(t *testing.T) {
 				{
 					PolicyType: PolicyTypeSan,
 					Type:       SanTypePermanentIdentifierAssigner,
-					Value:      UraAssigner.String(),
+					Value:      permanentIdentifierAssigner.String(),
 				},
 			},
 			wantErr: false,

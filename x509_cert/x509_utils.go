@@ -1,21 +1,20 @@
 package x509_cert
 
 import (
-	"bytes"
 	"crypto/x509"
-	"crypto/x509/pkix"
 	"encoding/asn1"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/go-didx509-toolkit/internal"
 	"slices"
 )
 
-type OtherName struct {
+type otherName struct {
 	TypeID asn1.ObjectIdentifier
 	Value  asn1.RawValue `asn1:"tag:0,explicit"`
 }
 
-type StingAndOid struct {
+type stringAndOid struct {
 	Value    string
 	Assigner asn1.ObjectIdentifier
 }
@@ -26,8 +25,6 @@ const (
 	PolicyTypeSan     PolicyType = "san"
 	PolicyTypeSubject PolicyType = "subject"
 )
-
-type SanType pkix.AttributeTypeAndValue
 
 type SanTypeName string
 
@@ -168,31 +165,22 @@ func SelectSanTypes(certificate *x509.Certificate, subjectAttributes ...SanTypeN
 	return selectedSubjectTypes, nil
 }
 
-func FindOtherNameValue(value []*OtherNameValue, policyType PolicyType, sanTypeName SanTypeName) (string, error) {
-	for _, v := range value {
-		if v != nil && v.PolicyType == policyType && v.Type == sanTypeName {
-			return v.Value, nil
-		}
-	}
-	return "", fmt.Errorf("failed to find value for policyType: %s and sanTypeName: %s", policyType, sanTypeName)
-}
-
 func findPermanentIdentifiers(cert *x509.Certificate) (string, asn1.ObjectIdentifier, error) {
 	value := ""
 	var assigner asn1.ObjectIdentifier
 	for _, extension := range cert.Extensions {
-		if extension.Id.Equal(SubjectAlternativeNameType) {
+		if extension.Id.Equal(internal.SubjectAlternativeNameType) {
 			err := forEachSAN(extension.Value, func(tag int, data []byte) error {
 				if tag != 0 {
 					return nil
 				}
-				var other OtherName
+				var other otherName
 				_, err := asn1.UnmarshalWithParams(data, &other, "tag:0")
 				if err != nil {
 					return fmt.Errorf("could not parse requested other SAN: %v", err)
 				}
-				if other.TypeID.Equal(PermanentIdentifierType) {
-					var x StingAndOid
+				if other.TypeID.Equal(internal.PermanentIdentifierType) {
+					var x stringAndOid
 					_, err = asn1.Unmarshal(other.Value.Bytes, &x)
 					if err != nil {
 						return err
@@ -216,17 +204,17 @@ func findPermanentIdentifiers(cert *x509.Certificate) (string, asn1.ObjectIdenti
 func findOtherNameValue(cert *x509.Certificate) (string, error) {
 	value := ""
 	for _, extension := range cert.Extensions {
-		if extension.Id.Equal(SubjectAlternativeNameType) {
+		if extension.Id.Equal(internal.SubjectAlternativeNameType) {
 			err := forEachSAN(extension.Value, func(tag int, data []byte) error {
 				if tag != 0 {
 					return nil
 				}
-				var other OtherName
+				var other otherName
 				_, err := asn1.UnmarshalWithParams(data, &other, "tag:0")
 				if err != nil {
 					return fmt.Errorf("could not parse requested other SAN: %v", err)
 				}
-				if other.TypeID.Equal(OtherNameType) {
+				if other.TypeID.Equal(internal.OtherNameType) {
 					_, err = asn1.Unmarshal(other.Value.Bytes, &value)
 					if err != nil {
 						return err
@@ -285,8 +273,4 @@ func processSANSequence(rest []byte, callback func(tag int, data []byte) error) 
 		}
 	}
 	return nil
-}
-
-func IsRootCa(signingCert *x509.Certificate) bool {
-	return signingCert.IsCA && bytes.Equal(signingCert.RawIssuer, signingCert.RawSubject)
 }
