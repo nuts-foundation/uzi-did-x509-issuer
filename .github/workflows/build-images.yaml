@@ -1,16 +1,15 @@
----
 name: 'Build Docker images'
 
 on:
   push:
     branches:
-      - master
+      - main
       - build-images # remove when merged
     tags:
       - 'v*'
   pull_request:
     branches:
-      - master
+      - main
 
 # cancel build action if superseded by new commit on same branch
 concurrency:
@@ -28,8 +27,6 @@ jobs:
         id: version
         shell: bash
         run: |
-          echo "git_commit=$(echo ${GITHUB_SHA})" >> $GITHUB_OUTPUT
-          echo "git_branch=$(echo ${GITHUB_REF#refs/heads/})" >> $GITHUB_OUTPUT
           echo "git_version=$(git name-rev --tags --name-only $(git rev-parse HEAD))" >> $GITHUB_OUTPUT
 
       - uses: actions-ecosystem/action-get-latest-tag@v1
@@ -39,8 +36,6 @@ jobs:
 
       - name: Print version params
         run: |
-          echo "Commit: ${{ steps.version.outputs.git_commit }}"
-          echo "Branch: ${{ steps.version.outputs.git_branch }}"
           echo "Version: ${{ steps.version.outputs.git_version }}"
           echo "Latest tag: ${{ steps.get-latest-tag.outputs.tag }}"
           echo "This tag: ${{ github.ref }}"
@@ -49,9 +44,9 @@ jobs:
         id: docker_meta
         uses: docker/metadata-action@v5
         with:
-          images: nutsfoundation/nuts-node
+          images: nutsfoundation/go-didx509-toolkit
           tags: |
-            # generate 'master' tag for the master branch
+            # generate 'main' tag for the main branch
             type=ref,event=branch,enable={{is_default_branch}},prefix=
             # generate 5.2.1 tag
             type=semver,pattern={{version}}
@@ -79,16 +74,3 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.docker_meta.outputs.tags }}
-          build-args: |
-            GIT_VERSION=${{ steps.version.outputs.git_version }}
-            GIT_COMMIT=${{ steps.version.outputs.git_commit }}
-            GIT_BRANCH=${{ steps.version.outputs.git_branch }}
-
-      - name: Build and push development image
-        if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/master'}}
-        uses: docker/build-push-action@v6
-        with:
-          context: development/dev-image
-          push: true
-          platforms: linux/amd64,linux/arm64
-          tags: nutsfoundation/nuts-node:dev
