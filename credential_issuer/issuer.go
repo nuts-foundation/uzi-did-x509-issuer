@@ -6,7 +6,6 @@ import (
 	"crypto/sha1"
 	"crypto/x509"
 	"encoding/base64"
-	"errors"
 	"github.com/nuts-foundation/go-didx509-toolkit/internal"
 	"time"
 
@@ -58,10 +57,6 @@ func Issue(chain []*x509.Certificate, key *rsa.PrivateKey, subject string, optio
 	}
 	// signing cert is at the start of the chain
 	signingCert := chain[0]
-	serialNumber := signingCert.Subject.SerialNumber
-	if serialNumber == "" {
-		return nil, errors.New("serialNumber not found in signing certificate")
-	}
 	otherNameValues, err := x509_cert.FindSanTypes(signingCert)
 	if err != nil {
 		return nil, err

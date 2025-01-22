@@ -179,12 +179,15 @@ func signingCertTemplate(serialNumber *big.Int, identifier string, permanentIden
 	}
 
 	tmpl := x509.Certificate{
-		SerialNumber:          serialNumber,
-		Subject:               pkix.Name{Organization: []string{"FauxCare"}},
+		SerialNumber: serialNumber,
+		Subject: pkix.Name{
+			Organization: []string{"Faux Care"},
+			Locality:     []string{"Testland", "Bug City"},
+		},
 		SignatureAlgorithm:    x509.SHA256WithRSA,
 		NotBefore:             time.Now(),
 		NotAfter:              time.Now().Add(time.Hour * 24 * 30), // valid for a month
-		EmailAddresses:        []string{"roland@headease.nl"},
+		EmailAddresses:        []string{"info@example.com"},
 		BasicConstraintsValid: true,
 		ExtraExtensions: []pkix.Extension{
 			{

@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-didx509-toolkit/x509_cert"
+	"maps"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -141,12 +143,23 @@ func createOtherNamePolicies(otherNames []*x509_cert.OtherNameValue) []string {
 }
 
 func createSubjectPolicies(subjectValues []*x509_cert.SubjectValue) []string {
-	var policies []string
+	// A policy may contain multiple fields (e.g. subject CN, O) and each field may have multiple values.
+	policies := make(map[x509_cert.PolicyType]map[string][]string)
 	for _, subjectValue := range subjectValues {
 		value := PercentEncode(subjectValue.Value)
-		fragments := []string{string(subjectValue.PolicyType), string(subjectValue.Type), value}
-		policy := strings.Join(fragments, ":")
-		policies = append(policies, policy)
+		if _, ok := policies[subjectValue.PolicyType]; !ok {
+			policies[subjectValue.PolicyType] = make(map[string][]string)
+		}
+		policies[subjectValue.PolicyType][string(subjectValue.Type)] = append(policies[subjectValue.PolicyType][string(subjectValue.Type)], value)
 	}
-	return policies
+	// Return sorted result for stable assertion order
+	var result []string
+	for _, policy := range slices.Sorted(maps.Keys(policies)) {
+		var policyValues []string
+		for _, field := range slices.Sorted(maps.Keys(policies[policy])) {
+			policyValues = append(policyValues, field+":"+strings.Join(policies[policy][field], ":"))
+		}
+		result = append(result, string(policy)+":"+strings.Join(policyValues, ":"))
+	}
+	return result
 }
