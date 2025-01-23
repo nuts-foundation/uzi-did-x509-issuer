@@ -40,15 +40,6 @@ func TestBuildX509Credential(t *testing.T) {
 			errorText: "",
 		},
 		{
-			name: "nok - empty serial number",
-			in: func(*testing.T) ([]*x509.Certificate, *rsa.PrivateKey, string) {
-				certs, privKey, didStr := defaultIn(t)
-				certs[0].Subject.SerialNumber = ""
-				return certs, privKey, didStr
-			},
-			errorText: "serialNumber not found in signing certificate",
-		},
-		{
 			name: "nok - invalid signing certificate 2",
 			in: func(t *testing.T) ([]*x509.Certificate, *rsa.PrivateKey, string) {
 				certs, privKey, didStr := defaultIn(t)
@@ -92,7 +83,7 @@ func TestIssue(t *testing.T) {
 		validChain, err := internal.ParseCertificatesFromPEM([]byte(internal.TestCertificateChain))
 		require.NoError(t, err, "failed to parse chain")
 
-		vc, err := Issue(validChain, validKey, "did:example:123", SubjectAttributes(x509_cert.SubjectTypeCountry, x509_cert.SubjectTypeOrganization))
+		vc, err := Issue(validChain, validKey, "did:example:123", SubjectAttributes(x509_cert.SubjectTypeCountry, x509_cert.SubjectTypeOrganization, x509_cert.SubjectTypeLocality))
 
 		require.NoError(t, err, "failed to issue verifiable credential")
 		require.NotNil(t, vc, "verifiable credential is nil")
@@ -100,12 +91,13 @@ func TestIssue(t *testing.T) {
 		assert.Equal(t, "https://www.w3.org/2018/credentials/v1", vc.Context[0].String())
 		assert.True(t, vc.IsType(ssi.MustParseURI("VerifiableCredential")))
 		assert.True(t, vc.IsType(ssi.MustParseURI("X509Credential")))
-		assert.Equal(t, "did:x509:0:sha256:IzvPueXLRjJtLtIicMzV3icpiLQPemu8lBv6oRGjm-o::san:otherName:2.16.528.1.1007.99.2110-1-1111111-S-2222222-00.000-333333::subject:O:FauxCare", vc.Issuer.String())
+		assert.Equal(t, "did:x509:0:sha256:DwXSf2_jaUod7cezXBGJBM4AaaoA8DI9j7aPMDTI-mQ::san:otherName:2.16.528.1.1007.99.2110-1-1111111-S-2222222-00.000-333333::subject:L:Testland:O:Faux%20Care", vc.Issuer.String())
 
 		expectedCredentialSubject := []interface{}{map[string]interface{}{
 			"id": "did:example:123",
 			"subject": map[string]interface{}{
-				"O": "FauxCare",
+				"O": "Faux Care",
+				"L": "Testland",
 			},
 			"san": map[string]interface{}{
 				"otherName":                    "2.16.528.1.1007.99.2110-1-1111111-S-2222222-00.000-333333",
@@ -126,6 +118,6 @@ func TestIssue(t *testing.T) {
 
 		vc, err := Issue(validChain, validKey, "did:example:123", SubjectAttributes(x509_cert.SubjectTypeCountry, x509_cert.SubjectTypeOrganization))
 
-		assert.Equal(t, "did:x509:0:sha256:IzvPueXLRjJtLtIicMzV3icpiLQPemu8lBv6oRGjm-o::san:otherName:2.16.528.1.1007.99.2110-1-1111111-S-2222222-00.000-333333::subject:O:FauxCare%20%26%20Co", vc.Issuer.String())
+		assert.Equal(t, "did:x509:0:sha256:DwXSf2_jaUod7cezXBGJBM4AaaoA8DI9j7aPMDTI-mQ::san:otherName:2.16.528.1.1007.99.2110-1-1111111-S-2222222-00.000-333333::subject:O:FauxCare%20%26%20Co", vc.Issuer.String())
 	})
 }

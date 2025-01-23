@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-didx509-toolkit/x509_cert"
+	"maps"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -23,7 +25,7 @@ type X509Did struct {
 	Version                string
 	RootCertificateHash    string
 	RootCertificateHashAlg string
-	Policies               []*x509_cert.GenericNameValue
+	Policies               []*x509_cert.PolicyValue
 }
 
 // FormatDid constructs a decentralized identifier (DID) from a certificate chain and an optional policy.
@@ -42,19 +44,25 @@ func FormatDid(issuerCert *x509.Certificate, policy ...string) (*did.DID, error)
 // CreateDid generates a Decentralized Identifier (DID) from a given certificate chain.
 // It extracts the Unique Registration Address (URA) from the chain, creates a policy with it, and formats the DID.
 // Returns the generated DID or an error if any step fails.
-func CreateDid(signingCert, caCert *x509.Certificate, subjectAttributes []x509_cert.SubjectTypeName, types ...x509_cert.SanTypeName) (*did.DID, error) {
-	otherNames, err := x509_cert.SelectSanTypes(signingCert, types...)
+func CreateDid(signingCert, caCert *x509.Certificate, includedSubjectTypes []x509_cert.SubjectTypeName, includedSanTypes ...x509_cert.SanTypeName) (*did.DID, error) {
+	otherNames, err := x509_cert.SelectSanTypes(signingCert, includedSanTypes...)
 	if err != nil {
 		return nil, err
 	}
-	policies := createOtherNamePolicies(otherNames)
-
-	subjectTypes, err := x509_cert.SelectSubjectTypes(signingCert, subjectAttributes...)
+	policies, err := formatPolicies(otherNames)
 	if err != nil {
 		return nil, err
 	}
 
-	policies = append(policies, createSubjectPolicies(subjectTypes)...)
+	subjectTypes, err := x509_cert.SelectSubjectTypes(signingCert, includedSubjectTypes...)
+	if err != nil {
+		return nil, err
+	}
+	if p, err := formatPolicies(subjectTypes); err != nil {
+		return nil, err
+	} else {
+		policies = append(policies, p...)
+	}
 
 	formattedDid, err := FormatDid(caCert, policies...)
 	return formattedDid, err
@@ -117,7 +125,7 @@ func ParseDid(didString string) (*X509Did, error) {
 		if err != nil {
 			return nil, err
 		}
-		x509Did.Policies = append(x509Did.Policies, &x509_cert.GenericNameValue{
+		x509Did.Policies = append(x509Did.Policies, &x509_cert.PolicyValue{
 			PolicyType: x509_cert.PolicyType(submatch[1]),
 			Type:       submatch[2],
 			Value:      value,
@@ -127,26 +135,30 @@ func ParseDid(didString string) (*X509Did, error) {
 	return &x509Did, nil
 }
 
-// createOtherNamePolicies constructs a policy string using the provided URA, fixed string "san", and "permanentIdentifier".
-// It joins these components with colons and returns the resulting policy string.
-func createOtherNamePolicies(otherNames []*x509_cert.OtherNameValue) []string {
-	var policies []string
-	for _, otherName := range otherNames {
-		value := PercentEncode(otherName.Value)
-		fragments := []string{string(otherName.PolicyType), string(otherName.Type), value}
-		policy := strings.Join(fragments, ":")
-		policies = append(policies, policy)
+// formatPolicies formats the policy values into a slice of strings, e.g.
+// { "subject:O:org1:L:Somewhere", "san:otherName:abc" }
+func formatPolicies(policyValues []*x509_cert.PolicyValue) ([]string, error) {
+	// A policy may contain multiple fields (e.g. subject CN, O) and each field may have multiple values.
+	policies := make(map[x509_cert.PolicyType]map[string][]string)
+	for _, val := range policyValues {
+		value := PercentEncode(val.Value)
+		if _, ok := policies[val.PolicyType]; !ok {
+			policies[val.PolicyType] = make(map[string][]string)
+		}
+		policies[val.PolicyType][val.Type] = append(policies[val.PolicyType][val.Type], value)
+		// For now multiple field values are not supported
+		if len(policies[val.PolicyType][val.Type]) > 1 {
+			return nil, fmt.Errorf("multiple values for policy %s (not supported)", val.PolicyType)
+		}
 	}
-	return policies
-}
-
-func createSubjectPolicies(subjectValues []*x509_cert.SubjectValue) []string {
-	var policies []string
-	for _, subjectValue := range subjectValues {
-		value := PercentEncode(subjectValue.Value)
-		fragments := []string{string(subjectValue.PolicyType), string(subjectValue.Type), value}
-		policy := strings.Join(fragments, ":")
-		policies = append(policies, policy)
+	// Return sorted result for stable assertion order
+	var result []string
+	for _, policy := range slices.Sorted(maps.Keys(policies)) {
+		var vals []string
+		for _, field := range slices.Sorted(maps.Keys(policies[policy])) {
+			vals = append(vals, field+":"+strings.Join(policies[policy][field], ":"))
+		}
+		result = append(result, string(policy)+":"+strings.Join(vals, ":"))
 	}
-	return policies
+	return result, nil
 }

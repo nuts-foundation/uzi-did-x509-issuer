@@ -1,0 +1,1 @@
+To regenerate the certificates in test_certs.go, run `go generate .` in the `gen` directory.

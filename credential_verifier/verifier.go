@@ -89,7 +89,7 @@ func Verify(jwtString string) error {
 	return nil
 }
 
-func checkForPolicy(policy *x509_cert.GenericNameValue, otherNames []*x509_cert.OtherNameValue, subjectTypes []*x509_cert.SubjectValue) (bool, error) {
+func checkForPolicy(policy *x509_cert.PolicyValue, otherNames []*x509_cert.PolicyValue, subjectTypes []*x509_cert.PolicyValue) (bool, error) {
 	switch policy.PolicyType {
 	case x509_cert.PolicyTypeSan:
 		found, err := checkForOtherNamePolicy(otherNames, policy)
@@ -108,7 +108,7 @@ func checkForPolicy(policy *x509_cert.GenericNameValue, otherNames []*x509_cert.
 	}
 }
 
-func checkForSubjectPolicy(subjectTypes []*x509_cert.SubjectValue, policy *x509_cert.GenericNameValue) (bool, error) {
+func checkForSubjectPolicy(subjectTypes []*x509_cert.PolicyValue, policy *x509_cert.PolicyValue) (bool, error) {
 	for _, subjectType := range subjectTypes {
 		if string(subjectType.Type) == policy.Type && subjectType.PolicyType == policy.PolicyType {
 			if policy.Value != subjectType.Value {
@@ -121,7 +121,7 @@ func checkForSubjectPolicy(subjectTypes []*x509_cert.SubjectValue, policy *x509_
 	return false, nil
 }
 
-func checkForOtherNamePolicy(otherNames []*x509_cert.OtherNameValue, policy *x509_cert.GenericNameValue) (bool, error) {
+func checkForOtherNamePolicy(otherNames []*x509_cert.PolicyValue, policy *x509_cert.PolicyValue) (bool, error) {
 	for _, otherName := range otherNames {
 		if string(otherName.Type) == policy.Type && otherName.PolicyType == policy.PolicyType {
 			if policy.Value != otherName.Value {

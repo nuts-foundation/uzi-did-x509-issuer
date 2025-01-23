@@ -18,13 +18,13 @@ func TestFindOtherName(t *testing.T) {
 	tests := []struct {
 		name        string
 		certificate *x509.Certificate
-		want        []*OtherNameValue
+		want        []*PolicyValue
 		wantErr     bool
 	}{
 		{
 			name:        "ValidOtherName",
 			certificate: chain[0],
-			want: []*OtherNameValue{
+			want: []*PolicyValue{
 				{
 					PolicyType: PolicyTypeSan,
 					Type:       SanTypeOtherName,
