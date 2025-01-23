@@ -152,7 +152,7 @@ func convertHeaders(headers map[string]interface{}) (jws.Headers, error) {
 	return hdr, nil
 }
 
-func buildCredential(issuerDID did.DID, expirationDate time.Time, otherNameValues []*x509_cert.OtherNameValue, subjectTypes []*x509_cert.SubjectValue, subjectDID string) (*vc.VerifiableCredential, error) {
+func buildCredential(issuerDID did.DID, expirationDate time.Time, otherNameValues []*x509_cert.PolicyValue, subjectTypes []*x509_cert.PolicyValue, subjectDID string) (*vc.VerifiableCredential, error) {
 	iat := time.Now()
 	subject := map[string]interface{}{
 		"id": subjectDID,

@@ -73,7 +73,7 @@ func TestCreateDidSingle(t *testing.T) {
 			name:     "Happy path",
 			fields:   fields{},
 			args:     args{chain: chain},
-			want:     did.MustParseDID(strings.Join([]string{"did", "x509", "0", hashAlg, rootHashString, "", "san", "otherName", "A_BIG_STRING", "", "san", "permanentIdentifier.value", "A_PERMANENT_STRING", "", "san", "permanentIdentifier.assigner", "2.16.528.1.1007.3.3"}, ":")),
+			want:     did.MustParseDID(strings.Join([]string{"did", "x509", "0", hashAlg, rootHashString, "", "san", "otherName", "A_BIG_STRING", "permanentIdentifier.assigner", "2.16.528.1.1007.3.3", "permanentIdentifier.value", "A_PERMANENT_STRING"}, ":")),
 			sanTypes: types,
 			errMsg:   "",
 		},
@@ -81,7 +81,7 @@ func TestCreateDidSingle(t *testing.T) {
 			name:     "Happy path",
 			fields:   fields{},
 			args:     args{chain: chain},
-			want:     did.MustParseDID(strings.Join([]string{"did", "x509", "0", hashAlg, rootHashString, "", "san", "otherName", "A_BIG_STRING", "", "san", "permanentIdentifier.value", "A_PERMANENT_STRING"}, ":")),
+			want:     did.MustParseDID(strings.Join([]string{"did", "x509", "0", hashAlg, rootHashString, "", "san", "otherName", "A_BIG_STRING", "permanentIdentifier.value", "A_PERMANENT_STRING"}, ":")),
 			sanTypes: []x509_cert.SanTypeName{x509_cert.SanTypeOtherName, x509_cert.SanTypePermanentIdentifierValue},
 			errMsg:   "",
 		},
@@ -162,7 +162,7 @@ func TestCreateDidDouble(t *testing.T) {
 			name:     "Happy path san",
 			fields:   fields{},
 			args:     args{chain: chain},
-			want:     strings.Join([]string{"did", "x509", "0", hashAlg, rootHashString, "", "san", "otherName", "A_BIG_STRING", "", "san", "permanentIdentifier.value", "A_SMALL_STRING", "", "san", "permanentIdentifier.assigner", "2.16.528.1.1007.3.3"}, ":"),
+			want:     strings.Join([]string{"did", "x509", "0", hashAlg, rootHashString, "", "san", "otherName", "A_BIG_STRING", "permanentIdentifier.assigner", "2.16.528.1.1007.3.3", "permanentIdentifier.value", "A_SMALL_STRING"}, ":"),
 			sanTypes: sanTypeNames,
 			errMsg:   "",
 		},
@@ -215,7 +215,7 @@ func TestCreateDidDouble(t *testing.T) {
 // TestParseDid tests the ParseDid function of DefaultDidProcessor by providing different DID strings.
 // It checks for correct X509Did parsing and appropriate error messages.
 func TestParseDid(t *testing.T) {
-	policies := []*x509_cert.GenericNameValue{
+	policies := []*x509_cert.PolicyValue{
 		{
 			PolicyType: "san",
 			Type:       "otherName",
@@ -258,7 +258,7 @@ func TestParseDid(t *testing.T) {
 		{name: "ok - correct unescaping",
 			fields: fields{},
 			args:   args{didString: "did:x509:0:sha512:hash::san:otherName:hello%20world%20from%20FauxCare%20%26%20Co"},
-			want:   &X509Did{Version: "0", RootCertificateHashAlg: "sha512", RootCertificateHash: "hash", Policies: []*x509_cert.GenericNameValue{{PolicyType: "san", Type: "otherName", Value: "hello world from FauxCare & Co"}}},
+			want:   &X509Did{Version: "0", RootCertificateHashAlg: "sha512", RootCertificateHash: "hash", Policies: []*x509_cert.PolicyValue{{PolicyType: "san", Type: "otherName", Value: "hello world from FauxCare & Co"}}},
 			errMsg: "",
 		},
 	}

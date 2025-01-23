@@ -91,7 +91,7 @@ func TestIssue(t *testing.T) {
 		assert.Equal(t, "https://www.w3.org/2018/credentials/v1", vc.Context[0].String())
 		assert.True(t, vc.IsType(ssi.MustParseURI("VerifiableCredential")))
 		assert.True(t, vc.IsType(ssi.MustParseURI("X509Credential")))
-		assert.Equal(t, "did:x509:0:sha256:wfHEHtLUf4TP_RcvrdcFsN1ktXyzlofoyAO5sNNPIdo::san:otherName:2.16.528.1.1007.99.2110-1-1111111-S-2222222-00.000-333333::subject:L:Bug%20City:Testland:O:Faux%20Care", vc.Issuer.String())
+		assert.Equal(t, "did:x509:0:sha256:DwXSf2_jaUod7cezXBGJBM4AaaoA8DI9j7aPMDTI-mQ::san:otherName:2.16.528.1.1007.99.2110-1-1111111-S-2222222-00.000-333333::subject:L:Testland:O:Faux%20Care", vc.Issuer.String())
 
 		expectedCredentialSubject := []interface{}{map[string]interface{}{
 			"id": "did:example:123",
@@ -118,6 +118,6 @@ func TestIssue(t *testing.T) {
 
 		vc, err := Issue(validChain, validKey, "did:example:123", SubjectAttributes(x509_cert.SubjectTypeCountry, x509_cert.SubjectTypeOrganization))
 
-		assert.Equal(t, "did:x509:0:sha256:wfHEHtLUf4TP_RcvrdcFsN1ktXyzlofoyAO5sNNPIdo::san:otherName:2.16.528.1.1007.99.2110-1-1111111-S-2222222-00.000-333333::subject:O:FauxCare%20%26%20Co", vc.Issuer.String())
+		assert.Equal(t, "did:x509:0:sha256:DwXSf2_jaUod7cezXBGJBM4AaaoA8DI9j7aPMDTI-mQ::san:otherName:2.16.528.1.1007.99.2110-1-1111111-S-2222222-00.000-333333::subject:O:FauxCare%20%26%20Co", vc.Issuer.String())
 	})
 }

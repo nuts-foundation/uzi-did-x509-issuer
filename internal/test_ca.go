@@ -182,7 +182,7 @@ func signingCertTemplate(serialNumber *big.Int, identifier string, permanentIden
 		SerialNumber: serialNumber,
 		Subject: pkix.Name{
 			Organization: []string{"Faux Care"},
-			Locality:     []string{"Testland", "Bug City"},
+			Locality:     []string{"Testland"},
 		},
 		SignatureAlgorithm:    x509.SHA256WithRSA,
 		NotBefore:             time.Now(),
