@@ -166,11 +166,11 @@ func buildCredential(issuerDID did.DID, expirationDate time.Time, otherNameValue
 		policyProps[propKey] = propValue
 	}
 	for _, otherNameValue := range otherNameValues {
-		addSubjectPolicyProperty(string(otherNameValue.PolicyType), string(otherNameValue.Type), otherNameValue.Value)
+		addSubjectPolicyProperty(otherNameValue.PolicyType, otherNameValue.Type, otherNameValue.Value)
 	}
 
 	for _, subjectType := range subjectTypes {
-		addSubjectPolicyProperty(string(subjectType.PolicyType), string(subjectType.Type), subjectType.Value)
+		addSubjectPolicyProperty(subjectType.PolicyType, subjectType.Type, subjectType.Value)
 	}
 
 	id := did.DIDURL{

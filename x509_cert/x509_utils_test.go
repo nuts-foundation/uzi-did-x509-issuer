@@ -4,7 +4,7 @@ import (
 	"crypto/x509"
 	"encoding/asn1"
 	"github.com/nuts-foundation/go-didx509-toolkit/internal"
-	"reflect"
+	"github.com/stretchr/testify/require"
 	"testing"
 )
 
@@ -57,16 +57,13 @@ func TestFindOtherName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			otherNames, err := FindSanTypes(tt.certificate)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("FindSanTypes() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if otherNames != nil {
-				if !reflect.DeepEqual(otherNames, tt.want) {
-					t.Errorf("FindSanTypes() got = %v, want %v", otherNames, tt.want)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				if otherNames != nil {
+					require.Equal(t, tt.want, otherNames)
 				}
-			} else if !tt.wantErr {
-				t.Errorf("unexpected nil from otherNames")
 			}
 		})
 	}

@@ -21,6 +21,10 @@ const hashAlg = "sha256"
 // newHashFn is the default hash function used for hashing issuerCertificate
 var newHashFn = sha256.New
 
+var policyRegex = regexp.MustCompile(`(\w+):([^:]+):([^:]+)`)
+
+var idPartRegex = regexp.MustCompile(`0:(\w+):([^:]+)`)
+
 type X509Did struct {
 	Version                string
 	RootCertificateHash    string
@@ -91,7 +95,7 @@ func PercentEncode(input string) string {
 }
 
 func ParseDid(didString string) (*X509Did, error) {
-	x509Did := X509Did{}
+	result := X509Did{}
 	didObj, err := did.ParseDID(didString)
 	if err != nil {
 		return nil, err
@@ -102,37 +106,35 @@ func ParseDid(didString string) (*X509Did, error) {
 	fullIdString := didObj.ID
 	idParts := strings.Split(fullIdString, "::")
 	if len(idParts) < 2 {
-		return nil, errors.New("invalid didString format, expected did:x509:0:alg:hash::(san:type:ura)+")
+		return nil, errors.New("invalid did:x509, expected did:x509:0:alg:hash::(policy(:type:value)+)+")
 	}
-	rootIdString := idParts[0]
-	policyParsString := idParts[1:]
-	regex := regexp.MustCompile(`0:(\w+):([^:]+)`)
-	submatch := regex.FindStringSubmatch(rootIdString)
+	rootPart := idParts[0]
+	policiesPart := idParts[1:]
+	submatch := idPartRegex.FindStringSubmatch(rootPart)
 	if len(submatch) != 3 {
-		return nil, errors.New("invalid didString format, expected didString:x509:0:alg:hash::san:type:ura")
+		return nil, errors.New("invalid did:x509, expected did:x509:0:alg:hash::(policy(:type:value)+)+")
 	}
-	x509Did.Version = "0"
-	x509Did.RootCertificateHashAlg = submatch[1]
-	x509Did.RootCertificateHash = submatch[2]
+	result.Version = "0"
+	result.RootCertificateHashAlg = submatch[1]
+	result.RootCertificateHash = submatch[2]
 
-	for _, policyString := range policyParsString {
-		regex := regexp.MustCompile(`(\w+):([^:]+):([^:]+)`)
-		submatch := regex.FindStringSubmatch(policyString)
-		if len(submatch) != 4 {
-			return nil, errors.New("invalid didString format, expected didString:x509:0:alg:hash::san:type:ura")
+	for _, policyString := range policiesPart {
+		policyParts := policyRegex.FindStringSubmatch(policyString)
+		if len(policyParts) != 4 {
+			return nil, errors.New("invalid did:x509, invalid policy")
 		}
-		value, err := url.PathUnescape(submatch[3])
+		value, err := url.PathUnescape(policyParts[3])
 		if err != nil {
 			return nil, err
 		}
-		x509Did.Policies = append(x509Did.Policies, &x509_cert.PolicyValue{
-			PolicyType: x509_cert.PolicyType(submatch[1]),
-			Type:       submatch[2],
+		result.Policies = append(result.Policies, &x509_cert.PolicyValue{
+			PolicyType: policyParts[1],
+			Type:       policyParts[2],
 			Value:      value,
 		})
 	}
 
-	return &x509Did, nil
+	return &result, nil
 }
 
 // formatPolicies formats the policy values into a slice of strings, e.g.

@@ -4,6 +4,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"github.com/nuts-foundation/go-didx509-toolkit/internal"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"net/url"
 	"strings"
@@ -11,7 +12,6 @@ import (
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-didx509-toolkit/x509_cert"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestPercentEncode(t *testing.T) {
@@ -113,18 +113,12 @@ func TestCreateDidSingle(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := CreateDid(tt.args.chain[0], tt.args.chain[len(tt.args.chain)-1], tt.subjectTypes, tt.sanTypes...)
-			wantErr := tt.errMsg != ""
-			if (err != nil) != wantErr {
-				t.Errorf("DefaultDidProcessor.CreateDid() error = %v, errMsg %v", err, tt.errMsg)
-				return
-			} else if wantErr {
-				if err.Error() != tt.errMsg {
-					t.Errorf("DefaultDidProcessor.CreateDid() expected = \"%v\", got: \"%v\"", tt.errMsg, err.Error())
-				}
-			}
-
-			if *got != tt.want {
-				t.Errorf("DefaultDidProcessor.CreateDid() = \n%v\n, want: \n%v\n", got, tt.want)
+			if tt.errMsg == "" {
+				require.NoError(t, err)
+				require.Equal(t, tt.want, *got)
+			} else {
+				require.EqualError(t, err, tt.errMsg)
+				assert.Nil(t, got)
 			}
 		})
 	}
@@ -195,18 +189,12 @@ func TestCreateDidDouble(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := CreateDid(tt.args.chain[0], tt.args.chain[len(tt.args.chain)-1], tt.subjectTypes, tt.sanTypes...)
-			wantErr := tt.errMsg != ""
-			if (err != nil) != wantErr {
-				t.Errorf("DefaultDidProcessor.CreateDid() error = %v, errMsg %v", err, tt.errMsg)
-				return
-			} else if wantErr {
-				if err.Error() != tt.errMsg {
-					t.Errorf("DefaultDidProcessor.CreateDid() expected = \"%v\", got: \"%v\"", tt.errMsg, err.Error())
-				}
-			}
-
-			if got != nil && got.String() != tt.want {
-				t.Errorf("DefaultDidProcessor.CreateDid() = \n%v\n, want: \n%v\n", got, tt.want)
+			if tt.errMsg == "" {
+				require.NoError(t, err)
+				require.Equal(t, tt.want, got.String())
+			} else {
+				require.EqualError(t, err, tt.errMsg)
+				assert.Nil(t, got)
 			}
 		})
 	}
@@ -253,7 +241,7 @@ func TestParseDid(t *testing.T) {
 			fields: fields{},
 			args:   args{didString: "did:x509:0:sha512::san:otherName:A_BIG_STRING"},
 			want:   nil,
-			errMsg: "invalid didString format, expected didString:x509:0:alg:hash::san:type:ura",
+			errMsg: "invalid did:x509, expected did:x509:0:alg:hash::(policy(:type:value)+)+",
 		},
 		{name: "ok - correct unescaping",
 			fields: fields{},
@@ -265,18 +253,12 @@ func TestParseDid(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := ParseDid(tt.args.didString)
-			wantErr := tt.errMsg != ""
-			if (err != nil) != wantErr {
-				t.Errorf("ParseDid() error = %v, expected error = %v", err, tt.errMsg)
-				return
-			} else if wantErr {
-				if err.Error() != tt.errMsg {
-					t.Errorf("ParseDid() expected = \"%v\", got = \"%v\"", tt.errMsg, err.Error())
-				}
-			}
-
-			if tt.want != nil && got != nil {
-				assert.Equal(t, tt.want.Policies, got.Policies)
+			if tt.errMsg == "" {
+				require.NoError(t, err)
+				require.Equal(t, tt.want.Policies, got.Policies)
+			} else {
+				require.EqualError(t, err, tt.errMsg)
+				assert.Nil(t, got)
 			}
 		})
 	}

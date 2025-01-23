@@ -2,6 +2,7 @@ package internal
 
 import (
 	"crypto/x509"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
@@ -20,12 +21,11 @@ func TestParsePemBytes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			blocks, err := parsePemBytes(tt.pemBytes)
-			if (err != nil) != tt.expectErr {
-				t.Errorf("parsePemBytes() error = %v, expectErr %v", err, tt.expectErr)
-			}
-
-			if len(blocks) != tt.expectNumBlocks {
-				t.Errorf("parsePemBytes() = %v, want %v", len(blocks), tt.expectNumBlocks)
+			if tt.expectErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Len(t, blocks, tt.expectNumBlocks)
 			}
 		})
 	}
@@ -112,21 +112,17 @@ func TestParseCertificateChain(t *testing.T) {
 			inputCerts := tt.in(certs)
 			expectedCerts := tt.out(certs)
 			resultCerts, err := ParseCertificateChain(inputCerts)
-			if err != nil {
-				if err.Error() != tt.errorText {
-					t.Errorf("BuildCertificateChain() error = '%v', wantErr '%v'", err.Error(), tt.errorText)
+			if tt.errorText == "" {
+				require.NoError(t, err)
+				require.Len(t, resultCerts, len(expectedCerts))
+				for i := range resultCerts {
+					if !resultCerts[i].Equal(expectedCerts[i]) {
+						t.Errorf("BuildCertificateChain() at index %d expected %v, got %v", i, expectedCerts[i], resultCerts[i])
+					}
 				}
-			} else if err == nil && tt.errorText != "" {
-				t.Errorf("BuildCertificateChain() unexpected success, want error")
-			}
-			if len(resultCerts) != len(expectedCerts) {
-				t.Errorf("BuildCertificateChain() expected %d certificates, got %d", len(expectedCerts), len(resultCerts))
-				return
-			}
-			for i := range resultCerts {
-				if !resultCerts[i].Equal(expectedCerts[i]) {
-					t.Errorf("BuildCertificateChain() at index %d expected %v, got %v", i, expectedCerts[i], resultCerts[i])
-				}
+			} else {
+				require.EqualError(t, err, tt.errorText)
+				require.Nil(t, expectedCerts)
 			}
 		})
 	}
