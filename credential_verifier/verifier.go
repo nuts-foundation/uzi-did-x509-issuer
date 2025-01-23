@@ -168,7 +168,7 @@ func findSigningCertificate(certificates []*x509.Certificate, thumbprint string)
 			return c, nil
 		}
 	}
-	return nil, fmt.Errorf("Could not find certificate with thumbprint %s", thumbprint)
+	return nil, fmt.Errorf("could not find certificate with thumbprint %s", thumbprint)
 }
 
 func parseCertificate(chain *cert.Chain) ([]*x509.Certificate, error) {
