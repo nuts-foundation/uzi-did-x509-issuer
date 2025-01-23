@@ -6,6 +6,7 @@ import (
 	"crypto/sha1"
 	"crypto/x509"
 	"encoding/base64"
+	"errors"
 	"github.com/nuts-foundation/go-didx509-toolkit/internal"
 	"time"
 
@@ -39,10 +40,22 @@ var defaultIssueOptions = &issueOptions{
 	subjectAttributes:          []x509_cert.SubjectTypeName{},
 }
 
-func Issue(chain []*x509.Certificate, key *rsa.PrivateKey, subject string, optionFns ...Option) (*vc.VerifiableCredential, error) {
+func Issue(chain []*x509.Certificate, caFingerprintCert *x509.Certificate, key *rsa.PrivateKey, subject string, optionFns ...Option) (*vc.VerifiableCredential, error) {
 	options := defaultIssueOptions
 	for _, fn := range optionFns {
 		fn(options)
+	}
+
+	// Sanity check: make sure caFingerprintCert is in the chain
+	caFingerprintCertPresent := false
+	for _, curr := range chain {
+		if curr.Equal(caFingerprintCert) {
+			caFingerprintCertPresent = true
+			break
+		}
+	}
+	if !caFingerprintCertPresent {
+		return nil, errors.New("caFingerprintCert is not in the chain")
 	}
 
 	types := []x509_cert.SanTypeName{x509_cert.SanTypeOtherName}
@@ -51,7 +64,7 @@ func Issue(chain []*x509.Certificate, key *rsa.PrivateKey, subject string, optio
 		types = append(types, x509_cert.SanTypePermanentIdentifierAssigner)
 	}
 
-	issuer, err := did_x509.CreateDid(chain[0], chain[len(chain)-1], options.subjectAttributes, types...)
+	issuer, err := did_x509.CreateDid(chain[0], caFingerprintCert, options.subjectAttributes, types...)
 	if err != nil {
 		return nil, err
 	}
