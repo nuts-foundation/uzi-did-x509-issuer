@@ -13,12 +13,12 @@ import (
 )
 
 type VC struct {
-	CertificateFile string `arg:"" name:"certificate_file" help:"Certificate PEM file. If the file contains a chain, the chain will be used for signing." type:"existingfile"`
-	SigningKey      string `arg:"" name:"signing_key" help:"PEM key for signing." type:"existingfile"`
+	CertificateFile string `arg:"" name:"certificate_file" help:"PEM file containing the full certificate chain." type:"existingfile"`
+	SigningKeyFile  string `arg:"" name:"signing_key_file" help:"PEM file containing the private key of the leaf certificate." type:"existingfile"`
 	// CAFingerprintDN specifies the subject DN of the certificate that should be used as did:x509 ca-fingerprint property.
-	CAFingerprintDN   string                      `arg:"" short:"c" name:"ca_fingerprint_dn" help:"The subject DN of the CA certificate that should be used as did:x509 ca-fingerprint property."`
-	SubjectDID        string                      `arg:"" name:"subject_did" help:"The subject DID of the VC."`
-	SubjectAttributes []x509_cert.SubjectTypeName `short:"s" name:"subject_attr" help:"A list of Subject Attributes u in the VC." default:"O,L"`
+	CAFingerprintDN   string                      `arg:"" short:"c" name:"ca_fingerprint_dn" help:"The full subject DN (distinguished name) of the CA certificate to be used as ca-fingerprint in the X.509 DID. The certificate must be present in the chain specified by certificate_file."`
+	SubjectDID        string                      `arg:"" name:"subject_did" help:"The subject DID of the Verifiable Credential."`
+	SubjectAttributes []x509_cert.SubjectTypeName `short:"s" name:"subject_attr" help:"List of X.509 subject attributes to include in the Verifiable Credential." default:"O,L"`
 	IncludePermanent  bool                        `short:"p" help:"Include the permanent identifier in the did:x509."`
 }
 
@@ -49,7 +49,7 @@ func main() {
 	}
 
 	switch ctx.Command() {
-	case "vc <certificate_file> <signing_key> <ca_fingerprint_dn> <subject_did>":
+	case "vc <certificate_file> <signing_key_file> <ca_fingerprint_dn> <subject_did>":
 		vc := cli.Vc
 		jwt, err := issueVc(vc)
 		if err != nil {
@@ -115,7 +115,7 @@ func issueVc(vc VC) (string, error) {
 		return "", InvalidCAFingerprintDNError{Candidates: candidates}
 	}
 
-	keyFileData, err := os.ReadFile(vc.SigningKey)
+	keyFileData, err := os.ReadFile(vc.SigningKeyFile)
 	if err != nil {
 		return "", fmt.Errorf("failed to read key file: %w", err)
 	}

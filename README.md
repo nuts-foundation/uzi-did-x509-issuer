@@ -25,12 +25,12 @@ To issue an `X509Credential`, provide the following parameters:
 - **certificate_file**: the PEM file of the certificate
 - **ca_fingerprint_dn**: the DN of the certificate in the chain that should be used as ca-fingerprint. 
   It must be one of the intermediate CA or root CAs. If invalid, it prints the DNs of the certificates in the chain.
-- **signing_key**: the unencrypted PEM file of the private key used for signing.
+- **signing_key_file**: the unencrypted PEM file of the private key used for signing.
 - **credential_subject**: the ID of the credential subject, typically a DID.
 
 Usage:
 ```shell
-./issuer vc <certificate_file> <signing_key> <ca_fingerprint_dn> <credential_subject>
+./issuer vc <certificate_file> <signing_key_file> <ca_fingerprint_dn> <credential_subject>
 ```
 
 Example:
