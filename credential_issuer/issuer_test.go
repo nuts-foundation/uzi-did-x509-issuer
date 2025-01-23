@@ -64,13 +64,11 @@ func TestBuildX509Credential(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			certificates, signingKey, subject := tt.in(t)
-			_, err := Issue(certificates, signingKey, subject)
-			if err != nil {
-				if err.Error() != tt.errorText {
-					t.Errorf("TestBuildX509Credential() error = '%v', wantErr '%v'", err.Error(), tt.errorText)
-				}
-			} else if err == nil && tt.errorText != "" {
-				t.Errorf("TestBuildX509Credential() unexpected success, want error")
+			_, err := Issue(certificates, certificates[2], signingKey, subject)
+			if tt.errorText == "" {
+				require.NoError(t, err)
+			} else {
+				require.EqualError(t, err, tt.errorText)
 			}
 		})
 	}
@@ -83,7 +81,7 @@ func TestIssue(t *testing.T) {
 		validChain, err := internal.ParseCertificatesFromPEM([]byte(internal.TestCertificateChain))
 		require.NoError(t, err, "failed to parse chain")
 
-		vc, err := Issue(validChain, validKey, "did:example:123", SubjectAttributes(x509_cert.SubjectTypeCountry, x509_cert.SubjectTypeOrganization, x509_cert.SubjectTypeLocality))
+		vc, err := Issue(validChain, validChain[3], validKey, "did:example:123", SubjectAttributes(x509_cert.SubjectTypeCountry, x509_cert.SubjectTypeOrganization, x509_cert.SubjectTypeLocality))
 
 		require.NoError(t, err, "failed to issue verifiable credential")
 		require.NotNil(t, vc, "verifiable credential is nil")
@@ -116,7 +114,7 @@ func TestIssue(t *testing.T) {
 
 		validChain[0].Subject.Organization = []string{"FauxCare & Co"}
 
-		vc, err := Issue(validChain, validKey, "did:example:123", SubjectAttributes(x509_cert.SubjectTypeCountry, x509_cert.SubjectTypeOrganization))
+		vc, err := Issue(validChain, validChain[3], validKey, "did:example:123", SubjectAttributes(x509_cert.SubjectTypeCountry, x509_cert.SubjectTypeOrganization))
 
 		assert.Equal(t, "did:x509:0:sha256:DwXSf2_jaUod7cezXBGJBM4AaaoA8DI9j7aPMDTI-mQ::san:otherName:2.16.528.1.1007.99.2110-1-1111111-S-2222222-00.000-333333::subject:O:FauxCare%20%26%20Co", vc.Issuer.String())
 	})

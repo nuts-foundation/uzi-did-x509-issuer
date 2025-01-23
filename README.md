@@ -23,17 +23,19 @@ The primary use of this toolkit is self-issuing `X509Credential`s through a `did
 To issue an `X509Credential`, provide the following parameters:
 
 - **certificate_file**: the PEM file of the certificate
-- **signing_key**: the unencrypted PEM file of the private key used for signing.
+- **ca_fingerprint_dn**: the DN of the certificate in the chain that should be used as ca-fingerprint. 
+  It must be one of the intermediate CA or root CAs. If invalid, it prints the DNs of the certificates in the chain.
+- **signing_key_file**: the unencrypted PEM file of the private key used for signing.
 - **credential_subject**: the ID of the credential subject, typically a DID.
 
 Usage:
 ```shell
-./issuer vc <certificate_file> <signing_key> <credential_subject>
+./issuer vc <certificate_file> <signing_key_file> <ca_fingerprint_dn> <credential_subject>
 ```
 
 Example:
 ```shell
-./issuer vc certificate.pem key.pem did:web:example.com
+./issuer vc certificate.pem key.pem "CN=Fake Root CA"  did:web:example.com
 ```
 
 ### Validating `X509Credential`s
