@@ -13,7 +13,7 @@ COPY go.sum .
 RUN go mod download && go mod verify
 
 COPY . .
-RUN GOOS=$TARGETOS GOARCH=$TARGETARCH go build -o /opt/go-didx509-toolkit/didx509-toolkit
+RUN GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags="-w -s" -o /opt/go-didx509-toolkit/didx509-toolkit
 
 # alpine
 FROM alpine:3.21.2
