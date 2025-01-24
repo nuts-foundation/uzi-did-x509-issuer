@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - build-images # remove when merged
     tags:
       - 'v*'
   pull_request:
