@@ -4,12 +4,6 @@ FROM golang:1.23.5-alpine AS builder
 ARG TARGETARCH
 ARG TARGETOS
 
-RUN apk update \
- && apk add --no-cache \
-            gcc \
-            musl-dev \
- && update-ca-certificates
-
 ENV GO111MODULE=on
 ENV GOPATH=/
 
