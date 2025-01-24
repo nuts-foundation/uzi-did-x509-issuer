@@ -4,12 +4,6 @@ FROM golang:1.23.5-alpine AS builder
 ARG TARGETARCH
 ARG TARGETOS
 
-RUN apk update \
- && apk add --no-cache \
-            gcc \
-            musl-dev \
- && update-ca-certificates
-
 ENV GO111MODULE=on
 ENV GOPATH=/
 
@@ -19,7 +13,7 @@ COPY go.sum .
 RUN go mod download && go mod verify
 
 COPY . .
-RUN GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags="-w -s" -o /opt/go-didx509-toolkit/didx509-toolkit
+RUN GOOS=$TARGETOS GOARCH=$TARGETARCH go build -o /opt/go-didx509-toolkit/didx509-toolkit
 
 # alpine
 FROM alpine:3.21.2

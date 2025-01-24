@@ -38,6 +38,12 @@ Example:
 ./issuer vc certificate.pem key.pem "CN=Fake Root CA"  did:web:example.com
 ```
 
+Using Docker (given your PEM files are in a directory called `certs`):
+```shell
+docker run --rm -v "$(pwd)/certs:/certs" nutsfoundation/go-didx509-toolkit:main \
+  vc /certs/certificate.pem /certs/key.pem "CN=Fake Root CA" did:web:example.com
+```
+
 ### Validating `X509Credential`s
 
 TODO
