@@ -22,7 +22,7 @@ It extends this DID method specification by adding support for the `san:otherNam
 The primary use of this toolkit is self-issuing `X509Credential`s through a `did:x509` DID, backed by an X.509 certificate.
 To issue an `X509Credential`, provide the following parameters:
 
-- **certificate_file**: the PEM file of the certificate
+- **certificate_file**: PEM file containing the full certificate chain.
 - **ca_fingerprint_dn**: the DN of the certificate in the chain that should be used as ca-fingerprint. 
   It must be one of the intermediate CA or root CAs. If invalid, it prints the DNs of the certificates in the chain.
 - **signing_key_file**: the unencrypted PEM file of the private key used for signing.
@@ -35,13 +35,13 @@ Usage:
 
 Example:
 ```shell
-./issuer vc certificate.pem key.pem "CN=Fake Root CA"  did:web:example.com
+./issuer vc certificate-chain.pem key.pem "CN=Fake Root CA"  did:web:example.com
 ```
 
 Using Docker (given your PEM files are in a directory called `certs`):
 ```shell
 docker run --rm -v "$(pwd)/certs:/certs" nutsfoundation/go-didx509-toolkit:main \
-  vc /certs/certificate.pem /certs/key.pem "CN=Fake Root CA" did:web:example.com
+  vc /certs/certificate-chain.pem /certs/key.pem "CN=Fake Root CA" did:web:example.com
 ```
 
 ### Validating `X509Credential`s
